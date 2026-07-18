@@ -1,18 +1,24 @@
 import { motion } from 'framer-motion'
-import { Palette, Sliders, RotateCcw } from 'lucide-react'
+import { Palette, Sliders, RotateCcw, Image, LayoutGrid, Frame, Type } from 'lucide-react'
 import type { QRCustomization } from '../utils/qr'
 import ColorPicker from './ColorPicker'
 import SizeSlider from './SizeSlider'
 import MarginSlider from './MarginSlider'
 import ErrorCorrectionSelect from './ErrorCorrectionSelect'
+import LogoUploader from './LogoUploader'
+import GradientPicker from './GradientPicker'
+import ModuleStyleSelector from './ModuleStyleSelector'
+import CornerStyleSelector from './CornerStyleSelector'
+import FrameSelector from './FrameSelector'
+import LabelEditor from './LabelEditor'
 
-interface CustomizationPanelProps {
+interface StylingPanelProps {
   customization: QRCustomization
   onChange: (customization: QRCustomization) => void
   onReset: () => void
 }
 
-export default function CustomizationPanel({ customization, onChange, onReset }: CustomizationPanelProps) {
+export default function StylingPanel({ customization, onChange, onReset }: StylingPanelProps) {
   const update = (partial: Partial<QRCustomization>) => {
     onChange({ ...customization, ...partial })
   }
@@ -35,6 +41,17 @@ export default function CustomizationPanel({ customization, onChange, onReset }:
             value={customization.bgColor}
             onChange={(bgColor) => update({ bgColor })}
           />
+          <div className="border-t border-white/5" />
+          <div>
+            <span className="text-xs text-slate-500 mb-2 block">Gradient</span>
+            <GradientPicker
+              gradientType={customization.gradientType}
+              gradientColor1={customization.gradientColor1}
+              gradientColor2={customization.gradientColor2}
+              gradientDirection={customization.gradientDirection}
+              onChange={(updates) => update(updates)}
+            />
+          </div>
         </div>
       ),
     },
@@ -57,6 +74,65 @@ export default function CustomizationPanel({ customization, onChange, onReset }:
             onChange={(level) => update({ level })}
           />
         </div>
+      ),
+    },
+    {
+      id: 'style',
+      icon: LayoutGrid,
+      label: 'Style',
+      content: (
+        <div className="space-y-5">
+          <ModuleStyleSelector
+            value={customization.moduleStyle}
+            onChange={(moduleStyle) => update({ moduleStyle })}
+          />
+          <div className="border-t border-white/5" />
+          <CornerStyleSelector
+            value={customization.cornerStyle}
+            onChange={(cornerStyle) => update({ cornerStyle })}
+          />
+        </div>
+      ),
+    },
+    {
+      id: 'logo',
+      icon: Image,
+      label: 'Logo',
+      content: (
+        <LogoUploader
+          logoDataUrl={customization.logoDataUrl}
+          onChange={(logoDataUrl) => update({ logoDataUrl })}
+        />
+      ),
+    },
+    {
+      id: 'frame',
+      icon: Frame,
+      label: 'Frame',
+      content: (
+        <FrameSelector
+          value={customization.frameStyle}
+          onChange={(frameStyle) => update({ frameStyle })}
+        />
+      ),
+    },
+    {
+      id: 'label',
+      icon: Type,
+      label: 'Label',
+      content: (
+        <LabelEditor
+          text={customization.labelText}
+          fontSize={customization.labelFontSize}
+          fontWeight={customization.labelFontWeight}
+          color={customization.labelColor}
+          onChange={(updates) => update({
+            labelText: updates.text,
+            labelFontSize: updates.fontSize,
+            labelFontWeight: updates.fontWeight,
+            labelColor: updates.color,
+          })}
+        />
       ),
     },
   ]

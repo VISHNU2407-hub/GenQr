@@ -1,7 +1,8 @@
-import { forwardRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react'
 import { CheckCircle2, Globe, FileText, Mail, Phone, MessageSquare, Wifi } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { renderPremiumQR } from '../utils/qrRenderer'
 import type { QRTypeId, QRCustomization } from '../utils/qr'
 
 const typeIcons: Record<QRTypeId, typeof Globe> = {
@@ -20,11 +21,65 @@ interface QRPreviewProps {
   typeLabel: string
 }
 
-const QRPreview = forwardRef<HTMLDivElement, QRPreviewProps>(
-  ({ qrValue, customization, type, typeLabel }, canvasRef) => {
-    const TypeIcon = typeIcons[type]
+// Frame style CSS classes
+const frameClasses: Record<string, string> = {
+  none: '',
+  minimal: 'ring-1 ring-white/10',
+  modern: 'ring-2 ring-primary/30 shadow-lg shadow-primary/10',
+  business: 'ring-1 ring-white/20 shadow-xl',
+  social: 'ring-2 ring-accent/30 rounded-3xl shadow-lg shadow-accent/10',
+  premium: 'ring-2 ring-primary/20 ring-offset-2 ring-offset-dark-bg shadow-2xl',
+}
 
-    return (
+const framePaddings: Record<string, string> = {
+  none: '',
+  minimal: 'p-0',
+  modern: 'p-1.5',
+  business: 'p-0',
+  social: 'p-2',
+  premium: 'p-1',
+}
+
+export default function QRPreview({ qrValue, customization, type, typeLabel }: QRPreviewProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const TypeIcon = typeIcons[type]
+
+  // Re-render QR whenever customization or value changes
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    renderPremiumQR(canvas, {
+      value: qrValue,
+      size: customization.size,
+      margin: customization.margin,
+      level: customization.level,
+      fgColor: customization.fgColor,
+      bgColor: customization.bgColor,
+      moduleStyle: customization.moduleStyle,
+      cornerStyle: customization.cornerStyle,
+      gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
+      gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
+      gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
+      gradientDirection: customization.gradientDirection,
+      logoDataUrl: customization.logoDataUrl,
+    })
+  }, [
+    qrValue, customization.size, customization.margin, customization.level,
+    customization.fgColor, customization.bgColor,
+    customization.moduleStyle, customization.cornerStyle,
+    customization.gradientType, customization.gradientColor1,
+    customization.gradientColor2, customization.gradientDirection,
+    customization.logoDataUrl,
+  ])
+
+  // SVG download ref
+  const frameClass = frameClasses[customization.frameStyle] || ''
+  const framePadding = framePaddings[customization.frameStyle] || ''
+
+  return (
+    <div ref={containerRef}>
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -43,24 +98,31 @@ const QRPreview = forwardRef<HTMLDivElement, QRPreviewProps>(
           {typeLabel} QR Code generated
         </motion.div>
 
-        {/* Premium QR Preview Card */}
-        <div
-          className="rounded-2xl shadow-xl transition-all duration-300"
-          style={{
-            backgroundColor: customization.bgColor,
-            padding: Math.max(customization.margin, 4) + 'px',
-          }}
-        >
-          <div ref={canvasRef}>
-            <QRCodeCanvas
-              value={qrValue}
-              size={customization.size}
-              level={customization.level}
-              fgColor={customization.fgColor}
-              bgColor={customization.bgColor}
-              marginSize={customization.margin}
-              style={{ display: 'block' }}
-            />
+        {/* Frame + QR container */}
+        <div className={`rounded-2xl transition-all duration-300 ${frameClass} ${framePadding}`}>
+          {/* QR Preview Card */}
+          <div
+            className="rounded-xl shadow-xl transition-all duration-300"
+            style={{
+              backgroundColor: customization.bgColor,
+            }}
+          >
+            <div
+              style={{
+                padding: `${Math.max(customization.margin, 4)}px`,
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                width={customization.size}
+                height={customization.size}
+                className="block mx-auto"
+                style={{
+                  width: customization.size,
+                  height: customization.size,
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -76,6 +138,20 @@ const QRPreview = forwardRef<HTMLDivElement, QRPreviewProps>(
           />
         </div>
 
+        {/* Label text */}
+        {customization.labelText && (
+          <p
+            className="text-center transition-all duration-200"
+            style={{
+              fontSize: customization.labelFontSize,
+              fontWeight: customization.labelFontWeight,
+              color: customization.labelColor,
+            }}
+          >
+            {customization.labelText}
+          </p>
+        )}
+
         {/* Value Display */}
         <p className="text-sm text-slate-400 text-center break-all max-w-sm leading-relaxed">
           {qrValue}
@@ -87,25 +163,16 @@ const QRPreview = forwardRef<HTMLDivElement, QRPreviewProps>(
             {customization.size}&times;{customization.size}px
           </span>
           <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5">
-            Margin: {customization.margin}
+            {(customization.gradientType !== 'solid' ? 'Gradient' : customization.fgColor.toUpperCase())}
+          </span>
+          <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5">
+            {customization.moduleStyle}
           </span>
           <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5">
             EC: {customization.level}
           </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: customization.fgColor }} />
-            {customization.fgColor.toUpperCase()}
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: customization.bgColor, border: '1px solid rgba(255,255,255,0.1)' }} />
-            {customization.bgColor.toUpperCase()}
-          </span>
         </div>
       </motion.div>
-    )
-  }
-)
-
-QRPreview.displayName = 'QRPreview'
-
-export default QRPreview
+    </div>
+  )
+}

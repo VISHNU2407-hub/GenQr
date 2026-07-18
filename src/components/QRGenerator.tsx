@@ -10,6 +10,7 @@ import {
   validateForm,
   generateQRValue,
 } from '../utils/qr'
+import { canvasToBlob } from '../utils/qrRenderer'
 import QRTypeSelector from './QRTypeSelector'
 import URLForm from './URLForm'
 import TextForm from './TextForm'
@@ -18,7 +19,7 @@ import PhoneForm from './PhoneForm'
 import SMSForm from './SMSForm'
 import WiFiForm from './WiFiForm'
 import QRPreview from './QRPreview'
-import CustomizationPanel from './CustomizationPanel'
+import StylingPanel from './CustomizationPanel'
 import DownloadOptions from './DownloadOptions'
 import Toast from './Toast'
 
@@ -43,7 +44,7 @@ export default function QRGenerator() {
   const [toastMessage, setToastMessage] = useState('')
   const [showToast, setShowToast] = useState(false)
   const [customization, setCustomization] = useState<QRCustomization>(DEFAULT_CUSTOMIZATION)
-  const canvasRef = useRef<HTMLDivElement>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   const showError = useCallback((message: string) => {
     setToastMessage(message)
@@ -79,15 +80,32 @@ export default function QRGenerator() {
     }, 600)
   }, [selectedType, formData, showError])
 
+  const getCanvas = useCallback((): HTMLCanvasElement | null => {
+    if (!previewRef.current) return null
+    return previewRef.current.querySelector('canvas')
+  }, [])
+
   const handleDownloadPNG = useCallback(() => {
-    if (!canvasRef.current) return
-    const canvas = canvasRef.current.querySelector('canvas')
+    const canvas = getCanvas()
     if (!canvas) return
     const link = document.createElement('a')
     link.download = 'genqr-code.png'
     link.href = canvas.toDataURL('image/png')
     link.click()
-  }, [])
+  }, [getCanvas])
+
+  const handleDownloadJPG = useCallback(async () => {
+    const canvas = getCanvas()
+    if (!canvas) return
+    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92)
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.download = 'genqr-code.jpg'
+    link.href = url
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [getCanvas])
 
   const handleDownloadSVG = useCallback(() => {
     const container = document.getElementById('qr-svg-container')
@@ -187,13 +205,12 @@ export default function QRGenerator() {
                 transition={{ duration: 0.4 }}
               >
                 {/* QR Preview */}
-                <div className="mt-10">
+                <div className="mt-10" ref={previewRef}>
                   <QRPreview
                     qrValue={qrValue}
                     customization={customization}
                     type={selectedType}
                     typeLabel={typeInfo?.label ?? ''}
-                    ref={canvasRef}
                   />
                 </div>
 
@@ -202,12 +219,13 @@ export default function QRGenerator() {
                   <DownloadOptions
                     onDownloadPNG={handleDownloadPNG}
                     onDownloadSVG={handleDownloadSVG}
+                    onDownloadJPG={handleDownloadJPG}
                     disabled={false}
                   />
                 </div>
 
-                {/* Customization Panel */}
-                <CustomizationPanel
+                {/* Styling Panel */}
+                <StylingPanel
                   customization={customization}
                   onChange={setCustomization}
                   onReset={handleResetCustomization}
@@ -237,6 +255,7 @@ export default function QRGenerator() {
                       <DownloadOptions
                         onDownloadPNG={() => {}}
                         onDownloadSVG={() => {}}
+                        onDownloadJPG={() => {}}
                         disabled={true}
                       />
                     </motion.div>

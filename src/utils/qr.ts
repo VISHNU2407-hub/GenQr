@@ -5,12 +5,31 @@ export type ErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
 
 // ─── QR Customization Options ───────────────────────
 
+export type ModuleStyle = 'square' | 'rounded' | 'extra-rounded' | 'dot'
+export type CornerStyle = 'square' | 'rounded' | 'circle'
+export type GradientType = 'solid' | 'linear' | 'radial'
+export type GradientDirection = 'left-to-right' | 'top-to-bottom' | 'diagonal'
+export type FrameStyle = 'none' | 'minimal' | 'modern' | 'business' | 'social' | 'premium'
+
 export interface QRCustomization {
   fgColor: string
   bgColor: string
   size: number
   margin: number
   level: ErrorCorrectionLevel
+  // Premium styling
+  moduleStyle: ModuleStyle
+  cornerStyle: CornerStyle
+  gradientType: GradientType
+  gradientColor1: string
+  gradientColor2: string
+  gradientDirection: GradientDirection
+  frameStyle: FrameStyle
+  labelText: string
+  labelFontSize: number
+  labelFontWeight: number
+  labelColor: string
+  logoDataUrl: string | null
 }
 
 export const DEFAULT_CUSTOMIZATION: QRCustomization = {
@@ -19,6 +38,18 @@ export const DEFAULT_CUSTOMIZATION: QRCustomization = {
   size: 250,
   margin: 10,
   level: 'M',
+  moduleStyle: 'square',
+  cornerStyle: 'square',
+  gradientType: 'solid',
+  gradientColor1: '#000000',
+  gradientColor2: '#3B82F6',
+  gradientDirection: 'left-to-right',
+  frameStyle: 'none',
+  labelText: '',
+  labelFontSize: 14,
+  labelFontWeight: 500,
+  labelColor: '#FFFFFF',
+  logoDataUrl: null,
 }
 
 export interface QRFormData {
