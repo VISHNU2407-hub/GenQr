@@ -1,26 +1,20 @@
 import { useState, useCallback, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, QrCode } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { QrCode } from 'lucide-react'
+import type { QRTypeId, QRFormData, QRCustomization } from '../utils/qr'
 import {
-  type QRTypeId,
-  type QRFormData,
-  type QRCustomization,
   QR_TYPES,
   DEFAULT_CUSTOMIZATION,
   validateForm,
   generateQRValue,
 } from '../utils/qr'
 import { canvasToBlob } from '../utils/qrRenderer'
-import QRTypeSelector from './QRTypeSelector'
-import URLForm from './URLForm'
-import TextForm from './TextForm'
-import EmailForm from './EmailForm'
-import PhoneForm from './PhoneForm'
-import SMSForm from './SMSForm'
-import WiFiForm from './WiFiForm'
-import QRPreview from './QRPreview'
-import StylingPanel from './CustomizationPanel'
-import DownloadOptions from './DownloadOptions'
+import QRContentSection from './QRContentSection'
+import ColorSection from './ColorSection'
+import StyleSection from './StyleSection'
+import LogoSection from './LogoSection'
+import ExportSection from './ExportSection'
+import LivePreview from './LivePreview'
 import Toast from './Toast'
 
 const defaultFormData: QRFormData = {
@@ -45,21 +39,43 @@ export default function QRGenerator() {
   const [showToast, setShowToast] = useState(false)
   const [customization, setCustomization] = useState<QRCustomization>(DEFAULT_CUSTOMIZATION)
   const previewRef = useRef<HTMLDivElement>(null)
+  const autoGenRef = useRef(false)
 
   const showError = useCallback((message: string) => {
     setToastMessage(message)
     setShowToast(true)
   }, [])
 
-  const handleTypeChange = useCallback((type: QRTypeId) => {
-    setSelectedType(type)
+  const handleResetAll = useCallback(() => {
+    setFormData(defaultFormData)
     setQrValue('')
     setIsGenerated(false)
+    autoGenRef.current = false
+    setCustomization(DEFAULT_CUSTOMIZATION)
   }, [])
+
+  const handleTypeChange = useCallback((type: QRTypeId) => {
+    setSelectedType(type)
+    if (autoGenRef.current) {
+      const value = generateQRValue(type, formData)
+      if (value) {
+        setQrValue(value)
+      }
+    }
+  }, [formData])
 
   const handleFormChange = useCallback((data: QRFormData) => {
     setFormData(data)
-  }, [])
+    if (autoGenRef.current) {
+      const value = generateQRValue(selectedType, data)
+      if (value) {
+        const error = validateForm(selectedType, data)
+        if (!error) {
+          setQrValue(value)
+        }
+      }
+    }
+  }, [selectedType])
 
   const handleGenerate = useCallback(() => {
     const error = validateForm(selectedType, formData)
@@ -69,16 +85,19 @@ export default function QRGenerator() {
     }
 
     setIsGenerating(true)
-    setIsGenerated(false)
-
     const value = generateQRValue(selectedType, formData)
 
     setTimeout(() => {
       setQrValue(value)
       setIsGenerating(false)
       setIsGenerated(true)
-    }, 600)
+      autoGenRef.current = true
+    }, 400)
   }, [selectedType, formData, showError])
+
+  const handleCustomizationChange = useCallback((updates: Partial<QRCustomization>) => {
+    setCustomization((prev) => ({ ...prev, ...updates }))
+  }, [])
 
   const getCanvas = useCallback((): HTMLCanvasElement | null => {
     if (!previewRef.current) return null
@@ -124,22 +143,16 @@ export default function QRGenerator() {
     URL.revokeObjectURL(url)
   }, [])
 
-  const handleResetCustomization = useCallback(() => {
-    setCustomization(DEFAULT_CUSTOMIZATION)
-  }, [])
-
   const typeInfo = QR_TYPES.find((t) => t.id === selectedType)
 
   return (
     <>
       <section id="generator" className="relative px-4 pb-24 -mt-24">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.6 }}
-            className="glass-card p-6 sm:p-8 md:p-10"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
             {/* Header */}
             <div className="text-center mb-8">
@@ -147,127 +160,64 @@ export default function QRGenerator() {
                 <QrCode className="w-6 h-6 text-primary" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                QR Code Generator
+                QR Code Editor
               </h2>
               <p className="mt-2 text-slate-400 text-sm">
-                {typeInfo?.description ?? 'Generate a QR code instantly'}
+                {typeInfo?.description ?? 'Design and customize your QR code in real time'}
               </p>
             </div>
 
-            {/* Type Selector */}
-            <QRTypeSelector selected={selectedType} onChange={handleTypeChange} />
-
-            {/* Dynamic Form */}
-            <div className="space-y-4">
-              {selectedType === 'url' && (
-                <URLForm data={formData} onChange={handleFormChange} onEnter={handleGenerate} />
-              )}
-              {selectedType === 'text' && (
-                <TextForm data={formData} onChange={handleFormChange} />
-              )}
-              {selectedType === 'email' && (
-                <EmailForm data={formData} onChange={handleFormChange} />
-              )}
-              {selectedType === 'phone' && (
-                <PhoneForm data={formData} onChange={handleFormChange} onEnter={handleGenerate} />
-              )}
-              {selectedType === 'sms' && (
-                <SMSForm data={formData} onChange={handleFormChange} onEnter={handleGenerate} />
-              )}
-              {selectedType === 'wifi' && (
-                <WiFiForm data={formData} onChange={handleFormChange} />
-              )}
-
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="btn-primary w-full text-base py-4 flex items-center justify-center gap-2.5"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="w-5 h-5" />
-                    {isGenerated ? 'Regenerate QR Code' : 'Generate QR Code'}
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* QR Preview & Customization */}
-            {isGenerated && qrValue ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-              >
-                {/* QR Preview */}
-                <div className="mt-10" ref={previewRef}>
-                  <QRPreview
-                    qrValue={qrValue}
-                    customization={customization}
-                    type={selectedType}
-                    typeLabel={typeInfo?.label ?? ''}
-                  />
-                </div>
-
-                {/* Download Options */}
-                <div className="mt-6">
-                  <DownloadOptions
-                    onDownloadPNG={handleDownloadPNG}
-                    onDownloadSVG={handleDownloadSVG}
-                    onDownloadJPG={handleDownloadJPG}
-                    disabled={false}
-                  />
-                </div>
-
-                {/* Styling Panel */}
-                <StylingPanel
+            {/* Two-Panel Layout */}
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Right Panel - Live Preview (renders FIRST on mobile) */}
+              <div className="w-full lg:w-[60%] order-first lg:order-none" ref={previewRef}>
+                <LivePreview
+                  qrValue={qrValue}
                   customization={customization}
-                  onChange={setCustomization}
-                  onReset={handleResetCustomization}
+                  type={selectedType}
+                  typeLabel={typeInfo?.label ?? ''}
+                  onReset={handleResetAll}
+                  onDownloadPNG={handleDownloadPNG}
+                  onDownloadSVG={handleDownloadSVG}
+                  onDownloadJPG={handleDownloadJPG}
                 />
-              </motion.div>
-            ) : (
-              <div className="mt-10">
-                <AnimatePresence mode="wait">
-                  {!isGenerating && (
-                    <motion.div
-                      key="placeholder"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex flex-col items-center gap-4 py-8"
-                    >
-                      <div className="w-48 h-48 rounded-2xl bg-white/[0.03] border-2 border-dashed border-white/10 flex items-center justify-center">
-                        <div className="text-center">
-                          <QrCode className="w-12 h-12 text-slate-600 mx-auto mb-2" />
-                          <p className="text-sm text-slate-600">
-                            Your QR code will appear here
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Download Buttons (disabled) */}
-                      <DownloadOptions
-                        onDownloadPNG={() => {}}
-                        onDownloadSVG={() => {}}
-                        onDownloadJPG={() => {}}
-                        disabled={true}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
-            )}
+
+              {/* Left Panel - Controls (renders SECOND on mobile) */}
+              <div className="w-full lg:w-[40%] space-y-4 order-last lg:order-none">
+                <QRContentSection
+                  selectedType={selectedType}
+                  formData={formData}
+                  isGenerating={isGenerating}
+                  isGenerated={isGenerated}
+                  onTypeChange={handleTypeChange}
+                  onFormChange={handleFormChange}
+                  onGenerate={handleGenerate}
+                />
+                <ColorSection
+                  customization={customization}
+                  onChange={handleCustomizationChange}
+                />
+                <StyleSection
+                  customization={customization}
+                  onChange={handleCustomizationChange}
+                />
+                <LogoSection
+                  customization={customization}
+                  onChange={handleCustomizationChange}
+                />
+                <ExportSection
+                  onDownloadPNG={handleDownloadPNG}
+                  onDownloadSVG={handleDownloadSVG}
+                  onDownloadJPG={handleDownloadJPG}
+                  disabled={!qrValue}
+                />
+              </div>
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Toast Notification */}
       <Toast
         message={toastMessage}
         isVisible={showToast}

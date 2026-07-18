@@ -15,6 +15,7 @@ interface RenderOptions {
   gradientColor2: string
   gradientDirection: GradientDirection
   logoDataUrl: string | null
+  logoSize?: number
 }
 
 const EC_MAP: Record<string, qrcode.QRCodeErrorCorrectionLevel> = {
@@ -140,7 +141,7 @@ export function renderPremiumQR(
   
   // Draw logo if provided
   if (logoDataUrl) {
-    drawLogo(ctx, size, logoDataUrl)
+    drawLogo(ctx, size, logoDataUrl, options.logoSize ?? 25)
   }
 }
 
@@ -224,11 +225,12 @@ function drawFinderFrames(
 function drawLogo(
   ctx: CanvasRenderingContext2D,
   size: number,
-  logoDataUrl: string
+  logoDataUrl: string,
+  logoSizePercent: number = 25
 ): void {
   const img = new Image()
   img.onload = () => {
-    const maxLogoSize = size * 0.25
+    const maxLogoSize = size * (logoSizePercent / 100)
     const logoSize = Math.min(img.width, img.height, maxLogoSize)
     const scale = logoSize / Math.max(img.width, img.height)
     const w = img.width * scale

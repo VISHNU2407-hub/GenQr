@@ -30,6 +30,7 @@ export interface QRCustomization {
   labelFontWeight: number
   labelColor: string
   logoDataUrl: string | null
+  logoSize: number
 }
 
 export const DEFAULT_CUSTOMIZATION: QRCustomization = {
@@ -50,6 +51,7 @@ export const DEFAULT_CUSTOMIZATION: QRCustomization = {
   labelFontWeight: 500,
   labelColor: '#FFFFFF',
   logoDataUrl: null,
+  logoSize: 25,
 }
 
 export interface QRFormData {
