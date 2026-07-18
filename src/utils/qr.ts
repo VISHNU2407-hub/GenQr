@@ -1,6 +1,25 @@
 // ─── QR Type Definitions ───────────────────────────────
 
 export type QRTypeId = 'url' | 'text' | 'email' | 'phone' | 'sms' | 'wifi'
+export type ErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H'
+
+// ─── QR Customization Options ───────────────────────
+
+export interface QRCustomization {
+  fgColor: string
+  bgColor: string
+  size: number
+  margin: number
+  level: ErrorCorrectionLevel
+}
+
+export const DEFAULT_CUSTOMIZATION: QRCustomization = {
+  fgColor: '#000000',
+  bgColor: '#FFFFFF',
+  size: 250,
+  margin: 10,
+  level: 'M',
+}
 
 export interface QRFormData {
   url?: string

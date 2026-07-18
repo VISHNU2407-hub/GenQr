@@ -1,22 +1,12 @@
 import { useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QRCodeCanvas } from 'qrcode.react'
-import {
-  Loader2,
-  Download,
-  CheckCircle2,
-  QrCode,
-  Globe,
-  FileText,
-  Mail,
-  Phone,
-  MessageSquare,
-  Wifi,
-} from 'lucide-react'
+import { Loader2, QrCode } from 'lucide-react'
 import {
   type QRTypeId,
   type QRFormData,
+  type QRCustomization,
   QR_TYPES,
+  DEFAULT_CUSTOMIZATION,
   validateForm,
   generateQRValue,
 } from '../utils/qr'
@@ -27,16 +17,10 @@ import EmailForm from './EmailForm'
 import PhoneForm from './PhoneForm'
 import SMSForm from './SMSForm'
 import WiFiForm from './WiFiForm'
+import QRPreview from './QRPreview'
+import CustomizationPanel from './CustomizationPanel'
+import DownloadOptions from './DownloadOptions'
 import Toast from './Toast'
-
-const typeIcons: Record<QRTypeId, typeof Globe> = {
-  url: Globe,
-  text: FileText,
-  email: Mail,
-  phone: Phone,
-  sms: MessageSquare,
-  wifi: Wifi,
-}
 
 const defaultFormData: QRFormData = {
   url: '',
@@ -58,7 +42,8 @@ export default function QRGenerator() {
   const [isGenerated, setIsGenerated] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [showToast, setShowToast] = useState(false)
-  const qrRef = useRef<HTMLDivElement>(null)
+  const [customization, setCustomization] = useState<QRCustomization>(DEFAULT_CUSTOMIZATION)
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   const showError = useCallback((message: string) => {
     setToastMessage(message)
@@ -94,20 +79,38 @@ export default function QRGenerator() {
     }, 600)
   }, [selectedType, formData, showError])
 
-  const handleDownload = useCallback(() => {
-    if (!qrRef.current) return
-
-    const canvas = qrRef.current.querySelector('canvas')
+  const handleDownloadPNG = useCallback(() => {
+    if (!canvasRef.current) return
+    const canvas = canvasRef.current.querySelector('canvas')
     if (!canvas) return
-
     const link = document.createElement('a')
     link.download = 'genqr-code.png'
     link.href = canvas.toDataURL('image/png')
     link.click()
   }, [])
 
+  const handleDownloadSVG = useCallback(() => {
+    const container = document.getElementById('qr-svg-container')
+    if (!container) return
+    const svg = container.querySelector('svg')
+    if (!svg) return
+    const clone = svg.cloneNode(true) as SVGElement
+    const serializer = new XMLSerializer()
+    const svgString = serializer.serializeToString(clone)
+    const blob = new Blob([svgString], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.download = 'genqr-code.svg'
+    link.href = url
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const handleResetCustomization = useCallback(() => {
+    setCustomization(DEFAULT_CUSTOMIZATION)
+  }, [])
+
   const typeInfo = QR_TYPES.find((t) => t.id === selectedType)
-  const TypeIcon = typeIcons[selectedType]
 
   return (
     <>
@@ -170,54 +173,50 @@ export default function QRGenerator() {
                 ) : (
                   <>
                     <QrCode className="w-5 h-5" />
-                    Generate QR Code
+                    {isGenerated ? 'Regenerate QR Code' : 'Generate QR Code'}
                   </>
                 )}
               </button>
             </div>
 
-            {/* QR Preview Area */}
-            <div className="mt-10">
-              <AnimatePresence mode="wait">
-                {isGenerated && qrValue ? (
-                  <motion.div
-                    key="qr-result"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-                    className="flex flex-col items-center gap-6"
-                  >
-                    {/* Type + Success badge */}
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <TypeIcon className="w-3.5 h-3.5" />
-                      {typeInfo?.label} QR Code generated successfully
-                    </motion.div>
+            {/* QR Preview & Customization */}
+            {isGenerated && qrValue ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                {/* QR Preview */}
+                <div className="mt-10">
+                  <QRPreview
+                    qrValue={qrValue}
+                    customization={customization}
+                    type={selectedType}
+                    typeLabel={typeInfo?.label ?? ''}
+                    ref={canvasRef}
+                  />
+                </div>
 
-                    {/* QR Code */}
-                    <div ref={qrRef} className="p-6 bg-white rounded-2xl shadow-xl">
-                      <QRCodeCanvas
-                        value={qrValue}
-                        size={220}
-                        level="M"
-                        fgColor="#0F172A"
-                        style={{ display: 'block' }}
-                      />
-                    </div>
+                {/* Download Options */}
+                <div className="mt-6">
+                  <DownloadOptions
+                    onDownloadPNG={handleDownloadPNG}
+                    onDownloadSVG={handleDownloadSVG}
+                    disabled={false}
+                  />
+                </div>
 
-                    {/* Value Display */}
-                    <p className="text-sm text-slate-400 text-center break-all max-w-sm leading-relaxed">
-                      {qrValue}
-                    </p>
-                  </motion.div>
-                ) : (
-                  !isGenerating && (
+                {/* Customization Panel */}
+                <CustomizationPanel
+                  customization={customization}
+                  onChange={setCustomization}
+                  onReset={handleResetCustomization}
+                />
+              </motion.div>
+            ) : (
+              <div className="mt-10">
+                <AnimatePresence mode="wait">
+                  {!isGenerating && (
                     <motion.div
                       key="placeholder"
                       initial={{ opacity: 0 }}
@@ -233,27 +232,18 @@ export default function QRGenerator() {
                           </p>
                         </div>
                       </div>
-                    </motion.div>
-                  )
-                )}
-              </AnimatePresence>
 
-              {/* Download Button */}
-              <div className="flex justify-center mt-6">
-                <button
-                  onClick={handleDownload}
-                  disabled={!isGenerated}
-                  className={`flex items-center gap-2.5 px-6 py-3 text-sm rounded-xl transition-all duration-200 ${
-                    isGenerated
-                      ? 'btn-secondary cursor-pointer'
-                      : 'bg-white/5 border border-white/5 text-slate-600 cursor-not-allowed'
-                  }`}
-                >
-                  <Download className="w-4 h-4" />
-                  Download PNG
-                </button>
+                      {/* Download Buttons (disabled) */}
+                      <DownloadOptions
+                        onDownloadPNG={() => {}}
+                        onDownloadSVG={() => {}}
+                        disabled={true}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
+            )}
           </motion.div>
         </div>
       </section>
