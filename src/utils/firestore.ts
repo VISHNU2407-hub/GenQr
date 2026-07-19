@@ -170,9 +170,20 @@ export async function getUserQRCodes(
   }
 }
 
-export async function deleteQRCode(qrId: string): Promise<void> {
+export async function deleteQRCode(qrId: string, userId: string): Promise<void> {
   const qrRef = doc(db, 'generated_qrs', qrId)
-  await deleteDoc(qrRef)
+  const userRef = doc(db, 'users', userId)
+
+  await runTransaction(db, async (transaction) => {
+    const userSnap = await transaction.get(userRef)
+    if (!userSnap.exists()) return
+
+    const currentTotal = userSnap.data().totalGeneratedQR ?? 0
+    transaction.delete(qrRef)
+    transaction.update(userRef, {
+      totalGeneratedQR: Math.max(0, currentTotal - 1),
+    })
+  })
 }
 
 export async function duplicateQRCode(qrId: string, userId: string): Promise<string | null> {
@@ -184,7 +195,46 @@ export async function duplicateQRCode(qrId: string, userId: string): Promise<str
   const data = qrSnap.data() as GeneratedQR
   const { id, createdAt, downloadCount, scanCount, ...rest } = data
 
-  return saveGeneratedQR(userId, rest)
+  try {
+    const newId = await saveGeneratedQR(userId, rest)
+    return newId
+  } catch (err) {
+    console.error('Failed to duplicate QR code:', err)
+    throw err
+  }
+}
+
+export async function incrementDownloadCount(qrId: string, userId: string): Promise<void> {
+  const qrRef = doc(db, 'generated_qrs', qrId)
+  const userRef = doc(db, 'users', userId)
+
+  await runTransaction(db, async (transaction) => {
+    transaction.update(qrRef, {
+      downloadCount: increment(1),
+    })
+    transaction.update(userRef, {
+      totalDownloads: increment(1),
+    })
+  })
+}
+
+/**
+ * Hook for future scan-count tracking.
+ * Currently wired to the UI display (scanCount field on GeneratedQR)
+ * and ready to connect to a scanning endpoint or scanner app integration.
+ */
+export async function incrementScanCount(qrId: string, userId: string): Promise<void> {
+  const qrRef = doc(db, 'generated_qrs', qrId)
+  const userRef = doc(db, 'users', userId)
+
+  await runTransaction(db, async (transaction) => {
+    transaction.update(qrRef, {
+      scanCount: increment(1),
+    })
+    transaction.update(userRef, {
+      totalScans: increment(1),
+    })
+  })
 }
 
 export function formatTimestamp(ts: Timestamp | null | undefined): string {

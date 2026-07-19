@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useRefresh } from '../contexts/RefreshContext'
 import { formatTimestamp, getUserProfile, type UserProfile } from '../utils/firestore'
 import { QrCode, Download, Eye, LogOut, Calendar, Mail, Shield, User, Loader2, AlertCircle } from 'lucide-react'
 import Toast from '../components/Toast'
 
 export default function Profile() {
   const { user, logout } = useAuth()
+  const { refreshSignal } = useRefresh()
   const navigate = useNavigate()
   const [localProfile, setLocalProfile] = useState<UserProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -41,7 +43,7 @@ export default function Profile() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [user, refreshSignal])
 
   const handleLogout = async () => {
     setLoggingOut(true)

@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useRefresh } from '../contexts/RefreshContext'
 import { getUserProfile, getUserQRCodes, formatTimestamp, type UserProfile, type GeneratedQR } from '../utils/firestore'
-import { QrCode, Zap, Download, BarChart3, Sparkles, ArrowRight, Clock, Eye, Activity, Loader2, AlertCircle } from 'lucide-react'
+import { QrCode, Zap, Download, BarChart3, Sparkles, ArrowRight, Eye, Activity, Loader2, AlertCircle } from 'lucide-react'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { refreshSignal } = useRefresh()
   const navigate = useNavigate()
   const [recentQRs, setRecentQRs] = useState<GeneratedQR[]>([])
   const [localProfile, setLocalProfile] = useState<UserProfile | null>(null)
@@ -19,6 +21,7 @@ export default function Dashboard() {
     let cancelled = false
 
     const loadDashboard = async () => {
+      setLoading(true)
       try {
         // Fetch both fresh profile data and recent QR codes in parallel
         const [profile, qrResult] = await Promise.all([
@@ -52,7 +55,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [user, refreshSignal])
 
   const stats = [
     {

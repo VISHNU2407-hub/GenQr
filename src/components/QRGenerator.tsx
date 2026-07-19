@@ -6,7 +6,8 @@ import { DEFAULT_CUSTOMIZATION, generateTemplateQRValue, validateTemplateForm } 
 import { canvasToBlob, generateSVG, generateSVGWithFrame, renderPremiumQR, renderQRWithFrame } from '../utils/qrRenderer'
 import type { FrameExportOptions } from '../utils/qrRenderer'
 import { useAuth } from '../contexts/AuthContext'
-import { saveGeneratedQR } from '../utils/firestore'
+import { saveGeneratedQR, incrementDownloadCount } from '../utils/firestore'
+import { useRefresh } from '../contexts/RefreshContext'
 import AuthGate from './AuthGate'
 import QRContentSection from './QRContentSection'
 import QRTypeBar from './QRTypeBar'
@@ -41,7 +42,11 @@ export default function QRGenerator() {
   const [toastType, setToastType] = useState<'error' | 'success'>('error')
   const [showToast, setShowToast] = useState(false)
 
+  // Track the most recently saved QR id so download handlers can increment downloadCount
+  const [lastGeneratedQrId, setLastGeneratedQrId] = useState<string | null>(null)
+
   const { user } = useAuth()
+  const { triggerRefresh } = useRefresh()
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const showToastMsg = useCallback((message: string, type: 'error' | 'success' = 'error') => {
@@ -117,7 +122,7 @@ export default function QRGenerator() {
     // Save to Firestore if authenticated
     if (user) {
       try {
-        await saveGeneratedQR(user.uid, {
+        const savedQrId = await saveGeneratedQR(user.uid, {
           userId: user.uid,
           type: selectedTemplate,
           content: value,
@@ -148,7 +153,12 @@ export default function QRGenerator() {
             logoSize: customization.logoSize,
           },
         })
+        if (savedQrId) {
+          setLastGeneratedQrId(savedQrId)
+        }
         saveCompleted = true
+        // Trigger cross-page refresh so Dashboard/Profile/MyQRCodes update
+        triggerRefresh()
       } catch (err: any) {
         console.error('Failed to save QR to Firestore:', err)
         const message = err?.code === 'permission-denied'
@@ -173,7 +183,7 @@ export default function QRGenerator() {
         showToastMsg(`QR generated but NOT saved: ${saveErrorMessage}`, 'error')
       }
     }, 400)
-  }, [selectedTemplate, formData, customization, user, showToastMsg])
+  }, [selectedTemplate, formData, customization, user, showToastMsg, triggerRefresh])
 
   // ── Build render options ──
   const getRenderOptions = useCallback(() => ({
@@ -249,6 +259,17 @@ export default function QRGenerator() {
     }
   }, [qrValue, customization, getRenderOptions, getFrameOptions])
 
+  const trackDownload = useCallback(async () => {
+    if (!user || !lastGeneratedQrId) return
+    try {
+      await incrementDownloadCount(lastGeneratedQrId, user.uid)
+      triggerRefresh()
+    } catch (err) {
+      console.error('Failed to track download:', err)
+      showToastMsg('Download saved, but count could not be updated. Please try again.', 'error')
+    }
+  }, [user, lastGeneratedQrId, triggerRefresh, showToastMsg])
+
   const handleDownloadPNG = useCallback(async () => {
     try {
       const dataUrl = await renderForDownload('png')
@@ -257,10 +278,11 @@ export default function QRGenerator() {
       link.download = 'genqr-code.png'
       link.href = dataUrl
       link.click()
+      await trackDownload()
     } catch {
       showToastMsg('Failed to download PNG. Please try again.', 'error')
     }
-  }, [renderForDownload, showToastMsg])
+  }, [renderForDownload, showToastMsg, trackDownload])
 
   const handleDownloadJPG = useCallback(async () => {
     try {
@@ -271,12 +293,13 @@ export default function QRGenerator() {
       link.href = url
       link.click()
       URL.revokeObjectURL(url)
+      await trackDownload()
     } catch {
       showToastMsg('Failed to download JPG. Please try again.', 'error')
     }
-  }, [renderForDownload, showToastMsg])
+  }, [renderForDownload, showToastMsg, trackDownload])
 
-  const handleDownloadSVG = useCallback(() => {
+  const handleDownloadSVG = useCallback(async () => {
     try {
       if (!qrValue) return
 
@@ -297,10 +320,11 @@ export default function QRGenerator() {
       link.href = url
       link.click()
       URL.revokeObjectURL(url)
+      await trackDownload()
     } catch {
       showToastMsg('Failed to download SVG. Please try again.', 'error')
     }
-  }, [qrValue, customization, showToastMsg, getRenderOptions, getFrameOptions])
+  }, [qrValue, customization, showToastMsg, getRenderOptions, getFrameOptions, trackDownload])
 
   const handleLogoError = useCallback((message: string) => {
     showToastMsg(message, 'error')

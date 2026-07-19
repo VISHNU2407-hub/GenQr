@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import AuthGuard from './components/AuthGuard'
 import Home from './pages/Home'
+import { RefreshProvider } from './contexts/RefreshContext'
 
 // Lazy load auth-protected pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -26,9 +27,10 @@ function PageLoader() {
 export default function App() {
   return (
     <div className="min-h-screen bg-dark-bg">
-      <Navbar />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
+      <RefreshProvider>
+        <Navbar />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           <Route path="/" element={<Home />} />
           <Route
             path="/dashboard"
@@ -54,8 +56,9 @@ export default function App() {
               </AuthGuard>
             }
           />
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </RefreshProvider>
     </div>
   )
 }

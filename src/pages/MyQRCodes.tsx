@@ -5,11 +5,13 @@ import {
   getUserQRCodes,
   deleteQRCode,
   duplicateQRCode,
+  incrementDownloadCount,
   formatTimestampRelative,
   type GeneratedQR,
   type QRPaginatedResult,
 } from '../utils/firestore'
-import { QrCode, Search, ArrowUpDown, Trash2, Copy, Download, ChevronLeft, ChevronRight, Loader2, AlertCircle, X } from 'lucide-react'
+import { useRefresh } from '../contexts/RefreshContext'
+import { QrCode, Search, ArrowUpDown, Trash2, Copy, Download, ChevronRight, Loader2, X } from 'lucide-react'
 import Toast from '../components/Toast'
 
 export default function MyQRCodes() {
@@ -21,6 +23,8 @@ export default function MyQRCodes() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [duplicatingIds, setDuplicatingIds] = useState<Set<string>>(new Set())
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set())
+  const { triggerRefresh, refreshSignal } = useRefresh()
 
   const loadQRCodes = useCallback(async (lastDoc?: any) => {
     if (!user) return
@@ -45,6 +49,14 @@ export default function MyQRCodes() {
     loadQRCodes()
   }, [loadQRCodes])
 
+  // Re-fetch when cross-page refresh signal fires (e.g. generate/delete/duplicate from another page)
+  useEffect(() => {
+    if (refreshSignal > 0 && qrData) {
+      loadQRCodes()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSignal])
+
   const handleSearch = useCallback((value: string) => {
     setSearch(value)
     // Reset pagination on search
@@ -52,9 +64,11 @@ export default function MyQRCodes() {
   }, [loadQRCodes])
 
   const handleDelete = async (qrId: string) => {
+    if (!user) return
     setDeletingIds((prev) => new Set(prev).add(qrId))
     try {
-      await deleteQRCode(qrId)
+      await deleteQRCode(qrId, user.uid)
+      // Remove from local state immediately
       setQrData((prev) => {
         if (!prev) return prev
         return {
@@ -62,11 +76,42 @@ export default function MyQRCodes() {
           qrs: prev.qrs.filter((qr) => qr.id !== qrId),
         }
       })
+      triggerRefresh()
       setToast({ message: 'QR code deleted', type: 'success' })
     } catch {
       setToast({ message: 'Failed to delete QR code', type: 'error' })
     } finally {
       setDeletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(qrId)
+        return next
+      })
+    }
+  }
+
+  const handleDownloadCount = async (qrId: string) => {
+    if (!user) return
+    setDownloadingIds((prev) => new Set(prev).add(qrId))
+    try {
+      await incrementDownloadCount(qrId, user.uid)
+      // Update local state so count refreshes immediately
+      setQrData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          qrs: prev.qrs.map((qr) =>
+            qr.id === qrId
+              ? { ...qr, downloadCount: (qr.downloadCount ?? 0) + 1 }
+              : qr
+          ),
+        }
+      })
+      triggerRefresh()
+      setToast({ message: 'Download counted', type: 'success' })
+    } catch {
+      setToast({ message: 'Failed to track download', type: 'error' })
+    } finally {
+      setDownloadingIds((prev) => {
         const next = new Set(prev)
         next.delete(qrId)
         return next
@@ -80,6 +125,7 @@ export default function MyQRCodes() {
     try {
       await duplicateQRCode(qrId, user.uid)
       setToast({ message: 'QR code duplicated', type: 'success' })
+      triggerRefresh()
       loadQRCodes()
     } catch {
       setToast({ message: 'Failed to duplicate QR code', type: 'error' })
@@ -220,6 +266,18 @@ export default function MyQRCodes() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDownloadCount(qr.id!)}
+                      disabled={downloadingIds.has(qr.id!)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/5 text-xs text-slate-400 hover:text-slate-200 transition-all disabled:opacity-50"
+                    >
+                      {downloadingIds.has(qr.id!) ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      Download
+                    </button>
                     <button
                       onClick={() => handleDuplicate(qr.id!)}
                       disabled={duplicatingIds.has(qr.id!)}
