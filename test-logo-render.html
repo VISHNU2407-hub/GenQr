@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Logo Test</title>
+  <script src="/node_modules/qrcode/lib/browser.js"></script>
+</head>
+<body style="background:#1e293b;color:white;font-family:sans-serif;padding:40px;text-align:center">
+  <h1>QR Logo Render Test</h1>
+  <p>Testing if logo rendering in QR code works correctly</p>
+  
+  <canvas id="test-canvas" width="250" height="250" style="border:2px solid #3B82F6;border-radius:12px;margin:20px auto;display:block"></canvas>
+  
+  <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+    <button id="btn-no-logo" style="padding:10px 20px;background:#334155;color:white;border:1px solid #475569;border-radius:8px;cursor:pointer">No Logo</button>
+    <button id="btn-add-logo" style="padding:10px 20px;background:#3B82F6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold">Add Test Logo</button>
+  </div>
+  
+  <div id="status" style="margin-top:20px;padding:12px;border-radius:8px;background:#334155;width:400px;margin-left:auto;margin-right:auto"></div>
+
+  <script>
+    const canvas = document.getElementById('test-canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+
+    let testLogoImg = null;
+
+    function setStatus(msg, type = 'info') {
+      statusEl.textContent = msg;
+      statusEl.style.borderLeft = type === 'success' ? '4px solid #22C55E' : type === 'error' ? '4px solid #EF4444' : '4px solid #3B82F6';
+    }
+
+    // Create a test logo (blue circle with "G" text)
+    function createTestLogo() {
+      const c = document.createElement('canvas');
+      c.width = 80;
+      c.height = 80;
+      const cx = c.getContext('2d');
+      
+      // Blue circle
+      cx.fillStyle = '#3B82F6';
+      cx.beginPath();
+      cx.arc(40, 40, 36, 0, Math.PI * 2);
+      cx.fill();
+      
+      // White border
+      cx.strokeStyle = '#FFFFFF';
+      cx.lineWidth = 3;
+      cx.beginPath();
+      cx.arc(40, 40, 36, 0, Math.PI * 2);
+      cx.stroke();
+      
+      // White "G" text
+      cx.fillStyle = '#FFFFFF';
+      cx.font = 'bold 40px Arial';
+      cx.textAlign = 'center';
+      cx.textBaseline = 'middle';
+      cx.fillText('G', 40, 42);
+      
+      const img = new Image();
+      img.src = c.toDataURL('image/png');
+      return img;
+    }
+
+    function renderQRWithLogo(logoImg) {
+      const size = 250;
+      const margin = 10;
+
+      try {
+        // Check if qrcode is available
+        if (typeof qrcode === 'undefined') {
+          setStatus('❌ qrcode library not loaded', 'error');
+          return;
+        }
+
+        // Generate QR code matrix
+        const qr = qrcode.create('https://example.com', { errorCorrectionLevel: 'H' });
+        const modules = qr.modules;
+        const matrixSize = modules.size;
+        const totalModules = matrixSize + margin * 2;
+        const cellSize = size / totalModules;
+        const offset = margin * cellSize;
+
+        // Draw background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, size, size);
+
+        // Draw modules
+        ctx.fillStyle = '#000000';
+        for (let row = 0; row < matrixSize; row++) {
+          for (let col = 0; col < matrixSize; col++) {
+            if (modules.data[row * matrixSize + col]) {
+              const x = offset + col * cellSize;
+              const y = offset + row * cellSize;
+              ctx.fillRect(x, y, cellSize + 0.5, cellSize + 0.5);
+            }
+          }
+        }
+
+        // Draw logo if provided
+        if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+          const logoSizePercent = 25;
+          const maxLogoSize = size * (logoSizePercent / 100);
+          const logoSize = Math.min(logoImg.naturalWidth, logoImg.naturalHeight, maxLogoSize);
+          const scale = logoSize / Math.max(logoImg.naturalWidth, logoImg.naturalHeight);
+          const w = logoImg.naturalWidth * scale;
+          const h = logoImg.naturalHeight * scale;
+          const x = (size - w) / 2;
+          const y = (size - h) / 2;
+
+          // White background for logo
+          ctx.fillStyle = '#FFFFFF';
+          const rx = x - 4, ry = y - 4, rw = w + 8, rh = h + 8, rr = 8;
+          ctx.beginPath();
+          ctx.moveTo(rx + rr, ry);
+          ctx.lineTo(rx + rw - rr, ry);
+          ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+          ctx.lineTo(rx + rw, ry + rh - rr);
+          ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+          ctx.lineTo(rx + rr, ry + rh);
+          ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+          ctx.lineTo(rx, ry + rr);
+          ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+          ctx.closePath();
+          ctx.fill();
+
+          // Draw logo image
+          ctx.drawImage(logoImg, x, y, w, h);
+          
+          console.log('Logo drawn at center:', {x, y, w, h});
+          setStatus('✅ Logo rendered successfully at center of QR code!', 'success');
+        } else {
+          setStatus('✅ QR code rendered (no logo)', 'info');
+        }
+      } catch (err) {
+        console.error('Render error:', err);
+        setStatus('❌ Error: ' + err.message, 'error');
+      }
+    }
+
+    // Pre-create the test logo (wait for it to load)
+    setStatus('Creating test logo...', 'info');
+    const tempImg = createTestLogo();
+    tempImg.onload = function() {
+      testLogoImg = tempImg;
+      setStatus('Test logo ready! Click "Add Test Logo" to see it in the QR code.', 'info');
+      renderQRWithLogo(null);
+    };
+    // Fallback if already loaded
+    setTimeout(() => {
+      if (tempImg.complete && tempImg.naturalWidth > 0) {
+        testLogoImg = tempImg;
+        setStatus('Test logo ready! Click "Add Test Logo" to see it in the QR code.', 'info');
+        renderQRWithLogo(null);
+      }
+    }, 500);
+
+    // Buttons
+    document.getElementById('btn-no-logo').addEventListener('click', function() {
+      renderQRWithLogo(null);
+    });
+    
+    document.getElementById('btn-add-logo').addEventListener('click', function() {
+      if (testLogoImg) {
+        renderQRWithLogo(testLogoImg);
+      } else {
+        setStatus('❌ Test logo not loaded yet', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

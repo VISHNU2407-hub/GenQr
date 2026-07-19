@@ -25,10 +25,6 @@ export interface QRCustomization {
   gradientColor2: string
   gradientDirection: GradientDirection
   frameStyle: FrameStyle
-  labelText: string
-  labelFontSize: number
-  labelFontWeight: number
-  labelColor: string
   logoDataUrl: string | null
   logoSize: number
 }
@@ -46,10 +42,6 @@ export const DEFAULT_CUSTOMIZATION: QRCustomization = {
   gradientColor2: '#3B82F6',
   gradientDirection: 'left-to-right',
   frameStyle: 'none',
-  labelText: '',
-  labelFontSize: 14,
-  labelFontWeight: 500,
-  labelColor: '#FFFFFF',
   logoDataUrl: null,
   logoSize: 25,
 }

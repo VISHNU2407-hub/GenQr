@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { QrCode, RotateCcw, CheckCircle2, Download } from 'lucide-react'
-import { QRCodeSVG } from 'qrcode.react'
 import { renderPremiumQR } from '../utils/qrRenderer'
 import type { QRTypeId, QRCustomization } from '../utils/qr'
 
@@ -14,6 +13,8 @@ interface LivePreviewProps {
   onDownloadPNG: () => void
   onDownloadSVG: () => void
   onDownloadJPG: () => void
+  /** Called with the canvas element so parent can access it for downloads */
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>
 }
 
 function InfoItem({ label, value }: { label: string; value: string }) {
@@ -52,36 +53,54 @@ export default function LivePreview({
   onDownloadPNG,
   onDownloadSVG,
   onDownloadJPG,
+  canvasRef: externalCanvasRef,
 }: LivePreviewProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const internalCanvasRef = useRef<HTMLCanvasElement>(null)
+  // Use external ref if provided, otherwise internal
+  const canvasRef = externalCanvasRef ?? internalCanvasRef
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !qrValue) return
 
-    renderPremiumQR(canvas, {
-      value: qrValue,
-      size: customization.size,
-      margin: customization.margin,
-      level: customization.level,
-      fgColor: customization.fgColor,
-      bgColor: customization.bgColor,
-      moduleStyle: customization.moduleStyle,
-      cornerStyle: customization.cornerStyle,
-      gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
-      gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
-      gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
-      gradientDirection: customization.gradientDirection,
-      logoDataUrl: customization.logoDataUrl,
-      logoSize: customization.logoSize,
-    })
+    const doRender = async () => {
+      if (!mountedRef.current) return
+      await renderPremiumQR(canvas, {
+        value: qrValue,
+        size: customization.size,
+        margin: customization.margin,
+        level: customization.level,
+        fgColor: customization.fgColor,
+        bgColor: customization.bgColor,
+        moduleStyle: customization.moduleStyle,
+        cornerStyle: customization.cornerStyle,
+        gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
+        gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
+        gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
+        gradientDirection: customization.gradientDirection,
+        logoDataUrl: customization.logoDataUrl,
+        logoSize: customization.logoSize,
+      })
+    }
+
+    doRender()
   }, [
-    qrValue, customization.size, customization.margin, customization.level,
+    qrValue,
+    customization.size, customization.margin, customization.level,
     customization.fgColor, customization.bgColor,
     customization.moduleStyle, customization.cornerStyle,
     customization.gradientType, customization.gradientColor1,
     customization.gradientColor2, customization.gradientDirection,
-    customization.logoDataUrl,
+    customization.logoDataUrl, customization.logoSize,
+    canvasRef,
   ])
 
   const displaySize = Math.min(customization.size, 320)
@@ -134,6 +153,7 @@ export default function LivePreview({
                 >
                   <canvas
                     ref={canvasRef}
+                    id="preview-canvas"
                     width={customization.size}
                     height={customization.size}
                     className="block mx-auto"
@@ -158,20 +178,6 @@ export default function LivePreview({
                 </div>
               </div>
             </motion.div>
-          )}
-        </div>
-
-        {/* Hidden SVG for download */}
-        <div className="hidden" id="qr-svg-container">
-          {qrValue && (
-            <QRCodeSVG
-              value={qrValue}
-              size={customization.size}
-              level={customization.level}
-              fgColor={customization.fgColor}
-              bgColor={customization.bgColor}
-              marginSize={customization.margin}
-            />
           )}
         </div>
 

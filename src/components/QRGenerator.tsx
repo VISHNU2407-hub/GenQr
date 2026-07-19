@@ -8,7 +8,7 @@ import {
   validateForm,
   generateQRValue,
 } from '../utils/qr'
-import { canvasToBlob } from '../utils/qrRenderer'
+import { canvasToBlob, generateSVG, renderPremiumQR } from '../utils/qrRenderer'
 import QRContentSection from './QRContentSection'
 import ColorSection from './ColorSection'
 import StyleSection from './StyleSection'
@@ -29,6 +29,8 @@ const defaultFormData: QRFormData = {
   security: 'WPA',
 }
 
+const SUCCESS_TOAST_DURATION = 3000
+
 export default function QRGenerator() {
   const [formData, setFormData] = useState<QRFormData>(defaultFormData)
   const [selectedType, setSelectedType] = useState<QRTypeId>('url')
@@ -36,13 +38,14 @@ export default function QRGenerator() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
+  const [toastType, setToastType] = useState<'error' | 'success'>('error')
   const [showToast, setShowToast] = useState(false)
   const [customization, setCustomization] = useState<QRCustomization>(DEFAULT_CUSTOMIZATION)
-  const previewRef = useRef<HTMLDivElement>(null)
-  const autoGenRef = useRef(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const showError = useCallback((message: string) => {
+  const showToastMsg = useCallback((message: string, type: 'error' | 'success' = 'error') => {
     setToastMessage(message)
+    setToastType(type)
     setShowToast(true)
   }, [])
 
@@ -50,98 +53,148 @@ export default function QRGenerator() {
     setFormData(defaultFormData)
     setQrValue('')
     setIsGenerated(false)
-    autoGenRef.current = false
     setCustomization(DEFAULT_CUSTOMIZATION)
   }, [])
 
   const handleTypeChange = useCallback((type: QRTypeId) => {
     setSelectedType(type)
-    if (autoGenRef.current) {
-      const value = generateQRValue(type, formData)
-      if (value) {
-        setQrValue(value)
-      }
+    const value = generateQRValue(type, formData)
+    if (value) {
+      setQrValue(value)
+    } else {
+      setQrValue('')
     }
   }, [formData])
 
   const handleFormChange = useCallback((data: QRFormData) => {
     setFormData(data)
-    if (autoGenRef.current) {
-      const value = generateQRValue(selectedType, data)
-      if (value) {
-        const error = validateForm(selectedType, data)
-        if (!error) {
-          setQrValue(value)
-        }
-      }
+    const value = generateQRValue(selectedType, data)
+    if (!value) {
+      setQrValue('')
+    } else {
+      setQrValue(value)
     }
   }, [selectedType])
 
   const handleGenerate = useCallback(() => {
     const error = validateForm(selectedType, formData)
     if (error) {
-      showError(error)
+      showToastMsg(error, 'error')
       return
     }
 
     setIsGenerating(true)
     const value = generateQRValue(selectedType, formData)
 
+    // Small delay for visual feedback
     setTimeout(() => {
       setQrValue(value)
       setIsGenerating(false)
       setIsGenerated(true)
-      autoGenRef.current = true
-    }, 400)
-  }, [selectedType, formData, showError])
+      showToastMsg('QR Code generated successfully!', 'success')
+    }, 300)
+  }, [selectedType, formData, showToastMsg])
 
   const handleCustomizationChange = useCallback((updates: Partial<QRCustomization>) => {
     setCustomization((prev) => ({ ...prev, ...updates }))
   }, [])
 
-  const getCanvas = useCallback((): HTMLCanvasElement | null => {
-    if (!previewRef.current) return null
-    return previewRef.current.querySelector('canvas')
-  }, [])
+  // Re-render on a temporary canvas for download to ensure logo is included
+  const renderForDownload = useCallback(async (format: 'png' | 'jpeg'): Promise<string | null> => {
+    if (!qrValue) return null
 
-  const handleDownloadPNG = useCallback(() => {
-    const canvas = getCanvas()
-    if (!canvas) return
-    const link = document.createElement('a')
-    link.download = 'genqr-code.png'
-    link.href = canvas.toDataURL('image/png')
-    link.click()
-  }, [getCanvas])
+    // Create an offscreen canvas
+    const offscreen = document.createElement('canvas')
+    offscreen.width = customization.size
+    offscreen.height = customization.size
+
+    await renderPremiumQR(offscreen, {
+      value: qrValue,
+      size: customization.size,
+      margin: customization.margin,
+      level: customization.level,
+      fgColor: customization.fgColor,
+      bgColor: customization.bgColor,
+      moduleStyle: customization.moduleStyle,
+      cornerStyle: customization.cornerStyle,
+      gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
+      gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
+      gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
+      gradientDirection: customization.gradientDirection,
+      logoDataUrl: customization.logoDataUrl,
+      logoSize: customization.logoSize,
+    })
+
+    if (format === 'png') {
+      return offscreen.toDataURL('image/png')
+    } else {
+      const blob = await canvasToBlob(offscreen, 'image/jpeg', 0.92)
+      if (!blob) return null
+      return URL.createObjectURL(blob)
+    }
+  }, [qrValue, customization])
+
+  const handleDownloadPNG = useCallback(async () => {
+    try {
+      const dataUrl = await renderForDownload('png')
+      if (!dataUrl) return
+      const link = document.createElement('a')
+      link.download = 'genqr-code.png'
+      link.href = dataUrl
+      link.click()
+    } catch {
+      showToastMsg('Failed to download PNG. Please try again.', 'error')
+    }
+  }, [renderForDownload, showToastMsg])
 
   const handleDownloadJPG = useCallback(async () => {
-    const canvas = getCanvas()
-    if (!canvas) return
-    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92)
-    if (!blob) return
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.download = 'genqr-code.jpg'
-    link.href = url
-    link.click()
-    URL.revokeObjectURL(url)
-  }, [getCanvas])
+    try {
+      const url = await renderForDownload('jpeg')
+      if (!url) return
+      const link = document.createElement('a')
+      link.download = 'genqr-code.jpg'
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToastMsg('Failed to download JPG. Please try again.', 'error')
+    }
+  }, [renderForDownload, showToastMsg])
 
   const handleDownloadSVG = useCallback(() => {
-    const container = document.getElementById('qr-svg-container')
-    if (!container) return
-    const svg = container.querySelector('svg')
-    if (!svg) return
-    const clone = svg.cloneNode(true) as SVGElement
-    const serializer = new XMLSerializer()
-    const svgString = serializer.serializeToString(clone)
-    const blob = new Blob([svgString], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.download = 'genqr-code.svg'
-    link.href = url
-    link.click()
-    URL.revokeObjectURL(url)
-  }, [])
+    try {
+      if (!qrValue) return
+      const svgString = generateSVG({
+        value: qrValue,
+        size: customization.size,
+        margin: customization.margin,
+        level: customization.level,
+        fgColor: customization.fgColor,
+        bgColor: customization.bgColor,
+        moduleStyle: customization.moduleStyle,
+        cornerStyle: customization.cornerStyle,
+        gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
+        gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
+        gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
+        gradientDirection: customization.gradientDirection,
+        logoDataUrl: customization.logoDataUrl,
+        logoSize: customization.logoSize,
+      })
+      const blob = new Blob([svgString], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = 'genqr-code.svg'
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToastMsg('Failed to download SVG. Please try again.', 'error')
+    }
+  }, [qrValue, customization, showToastMsg])
+
+  const handleLogoError = useCallback((message: string) => {
+    showToastMsg(message, 'error')
+  }, [showToastMsg])
 
   const typeInfo = QR_TYPES.find((t) => t.id === selectedType)
 
@@ -170,7 +223,7 @@ export default function QRGenerator() {
             {/* Two-Panel Layout */}
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Right Panel - Live Preview (renders FIRST on mobile) */}
-              <div className="w-full lg:w-[60%] order-first lg:order-none" ref={previewRef}>
+              <div className="w-full lg:w-[60%] order-first lg:order-none">
                 <LivePreview
                   qrValue={qrValue}
                   customization={customization}
@@ -180,6 +233,7 @@ export default function QRGenerator() {
                   onDownloadPNG={handleDownloadPNG}
                   onDownloadSVG={handleDownloadSVG}
                   onDownloadJPG={handleDownloadJPG}
+                  canvasRef={canvasRef}
                 />
               </div>
 
@@ -205,6 +259,7 @@ export default function QRGenerator() {
                 <LogoSection
                   customization={customization}
                   onChange={handleCustomizationChange}
+                  onError={handleLogoError}
                 />
                 <ExportSection
                   onDownloadPNG={handleDownloadPNG}
@@ -222,7 +277,10 @@ export default function QRGenerator() {
         message={toastMessage}
         isVisible={showToast}
         onClose={() => setShowToast(false)}
+        type={toastType}
+        duration={toastType === 'success' ? SUCCESS_TOAST_DURATION : 6000}
       />
     </>
   )
 }
+

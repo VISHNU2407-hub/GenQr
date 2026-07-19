@@ -4,41 +4,73 @@ import { Image, Upload, X } from 'lucide-react'
 interface LogoUploaderProps {
   logoDataUrl: string | null
   onChange: (dataUrl: string | null) => void
+  onError?: (message: string) => void
 }
 
-export default function LogoUploader({ logoDataUrl, onChange }: LogoUploaderProps) {
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_IMAGE_DIMENSION = 500
+
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml']
+
+export default function LogoUploader({ logoDataUrl, onChange, onError }: LogoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const validTypes = ['image/png', 'image/jpeg', 'image/svg+xml']
-    if (!validTypes.includes(file.type)) {
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      onError?.('Logo file must be less than 5MB')
       return
     }
 
+    // Validate file type
+    const isAcceptedType = ACCEPTED_TYPES.includes(file.type) || 
+      file.name.match(/\.(png|jpg|jpeg|svg)$/i) !== null
+    
+    if (!isAcceptedType) {
+      onError?.('Please upload a PNG, JPG, or SVG file')
+      return
+    }
+
+    // SVG files need special handling - read directly as text then convert to data URL
     const reader = new FileReader()
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string
-      if (dataUrl) {
-        // Limit logo size by checking image dimensions
-        const img = document.createElement('img')
-        img.onload = () => {
-          if (img.naturalWidth > 300 || img.naturalHeight > 300) {
-            return
-          }
-          onChange(dataUrl)
-        }
-        img.src = dataUrl
+      if (!dataUrl) return
+
+      // For SVG files, check dimensions by creating an offscreen image
+      if (file.type === 'image/svg+xml' || file.name.match(/\.svg$/i)) {
+        onChange(dataUrl)
+        return
       }
+
+      // For raster images, verify dimensions
+      const img = document.createElement('img')
+      img.onload = () => {
+        if (img.naturalWidth > MAX_IMAGE_DIMENSION || img.naturalHeight > MAX_IMAGE_DIMENSION) {
+          onError?.(`Logo dimensions too large (${img.naturalWidth}x${img.naturalHeight}). Maximum is ${MAX_IMAGE_DIMENSION}x${MAX_IMAGE_DIMENSION}px`)
+          return
+        }
+        onChange(dataUrl)
+      }
+      img.onerror = () => {
+        onError?.('Failed to load logo image')
+      }
+      img.src = dataUrl
+    }
+    reader.onerror = () => {
+      onError?.('Failed to read file')
     }
     reader.readAsDataURL(file)
-  }, [onChange])
+  }, [onChange, onError])
 
   const handleRemove = useCallback(() => {
     onChange(null)
-    if (inputRef.current) inputRef.current.value = ''
+    if (inputRef.current) {
+      inputRef.current.value = ''
+    }
   }, [onChange])
 
   return (
@@ -71,7 +103,7 @@ export default function LogoUploader({ logoDataUrl, onChange }: LogoUploaderProp
           <input
             ref={inputRef}
             type="file"
-            accept="image/png,image/jpeg,image/svg+xml"
+            accept=".png,.jpg,.jpeg,.svg"
             onChange={handleFileSelect}
             className="hidden"
           />

@@ -6,7 +6,6 @@ import FrameSelector from './FrameSelector'
 import SizeSlider from './SizeSlider'
 import MarginSlider from './MarginSlider'
 import ErrorCorrectionSelect from './ErrorCorrectionSelect'
-import LabelEditor from './LabelEditor'
 import CollapsibleSection from './CollapsibleSection'
 
 interface StyleSectionProps {
@@ -43,19 +42,6 @@ export default function StyleSection({ customization, onChange }: StyleSectionPr
       <ErrorCorrectionSelect
         value={customization.level}
         onChange={(level) => onChange({ level })}
-      />
-      <div className="border-t border-white/5" />
-      <LabelEditor
-        text={customization.labelText}
-        fontSize={customization.labelFontSize}
-        fontWeight={customization.labelFontWeight}
-        color={customization.labelColor}
-        onChange={(updates) => onChange({
-          labelText: updates.text,
-          labelFontSize: updates.fontSize,
-          labelFontWeight: updates.fontWeight,
-          labelColor: updates.color,
-        })}
       />
     </CollapsibleSection>
   )

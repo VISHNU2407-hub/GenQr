@@ -6,14 +6,16 @@ import CollapsibleSection from './CollapsibleSection'
 interface LogoSectionProps {
   customization: QRCustomization
   onChange: (updates: Partial<QRCustomization>) => void
+  onError?: (message: string) => void
 }
 
-export default function LogoSection({ customization, onChange }: LogoSectionProps) {
+export default function LogoSection({ customization, onChange, onError }: LogoSectionProps) {
   return (
     <CollapsibleSection title="Logo" icon={Image} defaultOpen={false}>
       <LogoUploader
         logoDataUrl={customization.logoDataUrl}
         onChange={(logoDataUrl) => onChange({ logoDataUrl })}
+        onError={onError}
       />
       {customization.logoDataUrl && (
         <div className="space-y-1.5">
