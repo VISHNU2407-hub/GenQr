@@ -1,4 +1,5 @@
-import { Download } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Download, Lock } from 'lucide-react'
 import CollapsibleSection from './CollapsibleSection'
 
 interface ExportSectionProps {
@@ -9,20 +10,31 @@ interface ExportSectionProps {
 }
 
 export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownloadJPG, disabled }: ExportSectionProps) {
-  const btnClass = (enabled: boolean) =>
-    `flex-1 flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
-      enabled
-        ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
-        : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed'
-    }`
-
   return (
-    <CollapsibleSection title="Export" icon={Download} defaultOpen={false}>
+    <CollapsibleSection title="Export" icon={Download} defaultOpen={true}>
+      {/* Disabled overlay message */}
+      {disabled && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-500/5 border border-slate-500/10 mb-3"
+        >
+          <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+          <span className="text-xs text-slate-500">
+            Generate a QR code first to enable export options
+          </span>
+        </motion.div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         <button
           onClick={onDownloadPNG}
           disabled={disabled}
-          className={btnClass(!disabled)}
+          className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
+            !disabled
+              ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
+              : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+          }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -34,7 +46,11 @@ export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownload
         <button
           onClick={onDownloadSVG}
           disabled={disabled}
-          className={btnClass(!disabled)}
+          className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
+            !disabled
+              ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
+              : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+          }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="16 18 22 12 16 6"/>
@@ -45,7 +61,11 @@ export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownload
         <button
           onClick={onDownloadJPG}
           disabled={disabled}
-          className={btnClass(!disabled)}
+          className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
+            !disabled
+              ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
+              : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+          }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>

@@ -1,46 +1,43 @@
 import { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { QrCode } from 'lucide-react'
-import type { QRTypeId, QRFormData, QRCustomization } from '../utils/qr'
-import {
-  QR_TYPES,
-  DEFAULT_CUSTOMIZATION,
-  validateForm,
-  generateQRValue,
-} from '../utils/qr'
-import { canvasToBlob, generateSVG, renderPremiumQR } from '../utils/qrRenderer'
+import type { TemplateId, TemplateFormData, QRCustomization } from '../utils/qr'
+import { DEFAULT_CUSTOMIZATION, generateTemplateQRValue, validateTemplateForm } from '../utils/qr'
+import { canvasToBlob, generateSVG, generateSVGWithFrame, renderPremiumQR, renderQRWithFrame } from '../utils/qrRenderer'
+import type { FrameExportOptions } from '../utils/qrRenderer'
 import QRContentSection from './QRContentSection'
+import QRTypeBar from './QRTypeBar'
 import ColorSection from './ColorSection'
 import StyleSection from './StyleSection'
+import FrameSection from './FrameSection'
 import LogoSection from './LogoSection'
 import ExportSection from './ExportSection'
+import GenerateSection from './GenerateSection'
 import LivePreview from './LivePreview'
+import ErrorBoundary from './ErrorBoundary'
 import Toast from './Toast'
-
-const defaultFormData: QRFormData = {
-  url: '',
-  text: '',
-  email: '',
-  subject: '',
-  message: '',
-  phone: '',
-  ssid: '',
-  password: '',
-  security: 'WPA',
-}
 
 const SUCCESS_TOAST_DURATION = 3000
 
 export default function QRGenerator() {
-  const [formData, setFormData] = useState<QRFormData>(defaultFormData)
-  const [selectedType, setSelectedType] = useState<QRTypeId>('url')
+  // ── Template / Content State ──
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId | null>(null)
+  const [formData, setFormData] = useState<TemplateFormData>({})
+  const [validationError, setValidationError] = useState<string | null>(null)
+
+  // ── Generation State ──
   const [qrValue, setQrValue] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
+
+  // ── Customization State ──
+  const [customization, setCustomization] = useState<QRCustomization>(DEFAULT_CUSTOMIZATION)
+
+  // ── Toast State ──
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState<'error' | 'success'>('error')
   const [showToast, setShowToast] = useState(false)
-  const [customization, setCustomization] = useState<QRCustomization>(DEFAULT_CUSTOMIZATION)
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const showToastMsg = useCallback((message: string, type: 'error' | 'success' = 'error') => {
@@ -50,80 +47,138 @@ export default function QRGenerator() {
   }, [])
 
   const handleResetAll = useCallback(() => {
-    setFormData(defaultFormData)
+    setSelectedTemplate(null)
+    setFormData({})
+    setValidationError(null)
     setQrValue('')
     setIsGenerated(false)
     setCustomization(DEFAULT_CUSTOMIZATION)
   }, [])
 
-  const handleTypeChange = useCallback((type: QRTypeId) => {
-    setSelectedType(type)
-    const value = generateQRValue(type, formData)
-    if (value) {
-      setQrValue(value)
+  const handleTemplateChange = useCallback((id: TemplateId | null) => {
+    setSelectedTemplate(id)
+    setFormData({})
+    setQrValue('')
+    setIsGenerated(false)
+    // Immediately validate so Generate button shows correct state
+    if (id) {
+      const error = validateTemplateForm(id, {})
+      setValidationError(error)
     } else {
-      setQrValue('')
+      setValidationError(null)
     }
-  }, [formData])
+  }, [])
 
-  const handleFormChange = useCallback((data: QRFormData) => {
+  const handleFormDataChange = useCallback((data: TemplateFormData) => {
     setFormData(data)
-    const value = generateQRValue(selectedType, data)
-    if (!value) {
-      setQrValue('')
-    } else {
-      setQrValue(value)
+
+    // Validate as user types (but DON'T auto-generate QR value)
+    const template = selectedTemplate
+    if (template) {
+      const error = validateTemplateForm(template, data)
+      setValidationError(error)
     }
-  }, [selectedType])
-
-  const handleGenerate = useCallback(() => {
-    const error = validateForm(selectedType, formData)
-    if (error) {
-      showToastMsg(error, 'error')
-      return
-    }
-
-    setIsGenerating(true)
-    const value = generateQRValue(selectedType, formData)
-
-    // Small delay for visual feedback
-    setTimeout(() => {
-      setQrValue(value)
-      setIsGenerating(false)
-      setIsGenerated(true)
-      showToastMsg('QR Code generated successfully!', 'success')
-    }, 300)
-  }, [selectedType, formData, showToastMsg])
+  }, [selectedTemplate])
 
   const handleCustomizationChange = useCallback((updates: Partial<QRCustomization>) => {
     setCustomization((prev) => ({ ...prev, ...updates }))
   }, [])
 
-  // Re-render on a temporary canvas for download to ensure logo is included
+  // ── Generate ──
+  const handleGenerate = useCallback(() => {
+    if (!selectedTemplate) {
+      showToastMsg('Please select a QR type', 'error')
+      return
+    }
+
+    const error = validateTemplateForm(selectedTemplate, formData)
+    if (error) {
+      setValidationError(error)
+      showToastMsg(error, 'error')
+      return
+    }
+
+    const value = generateTemplateQRValue(selectedTemplate, formData)
+    if (!value) {
+      showToastMsg('Please fill in all required fields', 'error')
+      return
+    }
+
+    setIsGenerating(true)
+    setQrValue(value)
+
+    // Small delay for visual feedback
+    setTimeout(() => {
+      setIsGenerating(false)
+      setIsGenerated(true)
+      showToastMsg('QR Code generated successfully!', 'success')
+    }, 400)
+  }, [selectedTemplate, formData, showToastMsg])
+
+  // ── Build render options ──
+  const getRenderOptions = useCallback(() => ({
+    value: qrValue,
+    size: customization.size,
+    margin: customization.margin,
+    level: customization.level,
+    fgColor: customization.fgColor,
+    bgColor: customization.bgColor,
+    moduleStyle: customization.moduleStyle,
+    cornerStyle: customization.cornerStyle,
+    gradientType: customization.gradientType === 'solid' ? 'solid' as const : customization.gradientType,
+    gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
+    gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
+    gradientDirection: customization.gradientDirection,
+    logoDataUrl: customization.logoDataUrl,
+    logoSize: customization.logoSize,
+  }), [qrValue, customization])
+
+  const getFrameOptions = useCallback((): FrameExportOptions => ({
+    framePreset: customization.framePreset,
+    frameCustomText: customization.frameCustomText,
+    frameColor: customization.frameColor,
+    frameBgColor: customization.frameBgColor,
+    frameBorderRadius: customization.frameBorderRadius,
+    frameBorderThickness: customization.frameBorderThickness,
+    framePadding: customization.framePadding,
+    frameHasShadow: customization.frameHasShadow,
+    frameRounded: customization.frameRounded,
+    frameOutline: customization.frameOutline,
+  }), [
+    customization.framePreset,
+    customization.frameCustomText,
+    customization.frameColor,
+    customization.frameBgColor,
+    customization.frameBorderRadius,
+    customization.frameBorderThickness,
+    customization.framePadding,
+    customization.frameHasShadow,
+    customization.frameRounded,
+    customization.frameOutline,
+  ])
+
+  // ── Export helpers ──
   const renderForDownload = useCallback(async (format: 'png' | 'jpeg'): Promise<string | null> => {
     if (!qrValue) return null
 
-    // Create an offscreen canvas
+    const renderOptions = getRenderOptions()
+    const frameOptions = getFrameOptions()
+
+    if (frameOptions.framePreset !== 'none') {
+      const canvas = await renderQRWithFrame(renderOptions, frameOptions)
+      if (format === 'png') {
+        return canvas.toDataURL('image/png')
+      } else {
+        const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92)
+        if (!blob) return null
+        return URL.createObjectURL(blob)
+      }
+    }
+
     const offscreen = document.createElement('canvas')
     offscreen.width = customization.size
     offscreen.height = customization.size
-
-    await renderPremiumQR(offscreen, {
-      value: qrValue,
-      size: customization.size,
-      margin: customization.margin,
-      level: customization.level,
-      fgColor: customization.fgColor,
-      bgColor: customization.bgColor,
-      moduleStyle: customization.moduleStyle,
-      cornerStyle: customization.cornerStyle,
-      gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
-      gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
-      gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
-      gradientDirection: customization.gradientDirection,
-      logoDataUrl: customization.logoDataUrl,
-      logoSize: customization.logoSize,
-    })
+    await renderPremiumQR(offscreen, renderOptions)
 
     if (format === 'png') {
       return offscreen.toDataURL('image/png')
@@ -132,7 +187,7 @@ export default function QRGenerator() {
       if (!blob) return null
       return URL.createObjectURL(blob)
     }
-  }, [qrValue, customization])
+  }, [qrValue, customization, getRenderOptions, getFrameOptions])
 
   const handleDownloadPNG = useCallback(async () => {
     try {
@@ -164,22 +219,17 @@ export default function QRGenerator() {
   const handleDownloadSVG = useCallback(() => {
     try {
       if (!qrValue) return
-      const svgString = generateSVG({
-        value: qrValue,
-        size: customization.size,
-        margin: customization.margin,
-        level: customization.level,
-        fgColor: customization.fgColor,
-        bgColor: customization.bgColor,
-        moduleStyle: customization.moduleStyle,
-        cornerStyle: customization.cornerStyle,
-        gradientType: customization.gradientType === 'solid' ? 'solid' : customization.gradientType,
-        gradientColor1: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor1,
-        gradientColor2: customization.gradientType === 'solid' ? customization.fgColor : customization.gradientColor2,
-        gradientDirection: customization.gradientDirection,
-        logoDataUrl: customization.logoDataUrl,
-        logoSize: customization.logoSize,
-      })
+
+      const renderOptions = getRenderOptions()
+      const frameOptions = getFrameOptions()
+
+      let svgString: string
+      if (frameOptions.framePreset !== 'none') {
+        svgString = generateSVGWithFrame(renderOptions, frameOptions)
+      } else {
+        svgString = generateSVG(renderOptions)
+      }
+
       const blob = new Blob([svgString], { type: 'image/svg+xml' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -190,13 +240,14 @@ export default function QRGenerator() {
     } catch {
       showToastMsg('Failed to download SVG. Please try again.', 'error')
     }
-  }, [qrValue, customization, showToastMsg])
+  }, [qrValue, customization, showToastMsg, getRenderOptions, getFrameOptions])
 
   const handleLogoError = useCallback((message: string) => {
     showToastMsg(message, 'error')
   }, [showToastMsg])
 
-  const typeInfo = QR_TYPES.find((t) => t.id === selectedType)
+  // Determine if generate should be enabled
+  const canGenerate = selectedTemplate !== null && !validationError
 
   return (
     <>
@@ -216,37 +267,40 @@ export default function QRGenerator() {
                 QR Code Editor
               </h2>
               <p className="mt-2 text-slate-400 text-sm">
-                {typeInfo?.description ?? 'Design and customize your QR code in real time'}
+                Design and customize your QR code in real time
               </p>
             </div>
+
+            {/* QR Type Horizontal Selector */}
+            <QRTypeBar
+              selectedTemplate={selectedTemplate}
+              onSelect={handleTemplateChange}
+            />
 
             {/* Two-Panel Layout */}
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Right Panel - Live Preview (renders FIRST on mobile) */}
               <div className="w-full lg:w-[60%] order-first lg:order-none">
-                <LivePreview
-                  qrValue={qrValue}
-                  customization={customization}
-                  type={selectedType}
-                  typeLabel={typeInfo?.label ?? ''}
-                  onReset={handleResetAll}
-                  onDownloadPNG={handleDownloadPNG}
-                  onDownloadSVG={handleDownloadSVG}
-                  onDownloadJPG={handleDownloadJPG}
-                  canvasRef={canvasRef}
-                />
+                <ErrorBoundary>
+                  <LivePreview
+                    qrValue={qrValue}
+                    customization={customization}
+                    onReset={handleResetAll}
+                    onDownloadPNG={handleDownloadPNG}
+                    onDownloadSVG={handleDownloadSVG}
+                    onDownloadJPG={handleDownloadJPG}
+                    canvasRef={canvasRef}
+                  />
+                </ErrorBoundary>
               </div>
 
               {/* Left Panel - Controls (renders SECOND on mobile) */}
               <div className="w-full lg:w-[40%] space-y-4 order-last lg:order-none">
                 <QRContentSection
-                  selectedType={selectedType}
+                  selectedTemplate={selectedTemplate}
                   formData={formData}
-                  isGenerating={isGenerating}
-                  isGenerated={isGenerated}
-                  onTypeChange={handleTypeChange}
-                  onFormChange={handleFormChange}
-                  onGenerate={handleGenerate}
+                  validationError={validationError}
+                  onFormDataChange={handleFormDataChange}
                 />
                 <ColorSection
                   customization={customization}
@@ -256,16 +310,26 @@ export default function QRGenerator() {
                   customization={customization}
                   onChange={handleCustomizationChange}
                 />
+                <FrameSection
+                  customization={customization}
+                  onChange={handleCustomizationChange}
+                />
                 <LogoSection
                   customization={customization}
                   onChange={handleCustomizationChange}
                   onError={handleLogoError}
                 />
+                <GenerateSection
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                  isGenerated={isGenerated}
+                  disabled={!canGenerate}
+                />
                 <ExportSection
                   onDownloadPNG={handleDownloadPNG}
                   onDownloadSVG={handleDownloadSVG}
                   onDownloadJPG={handleDownloadJPG}
-                  disabled={!qrValue}
+                  disabled={!isGenerated}
                 />
               </div>
             </div>
@@ -283,4 +347,3 @@ export default function QRGenerator() {
     </>
   )
 }
-

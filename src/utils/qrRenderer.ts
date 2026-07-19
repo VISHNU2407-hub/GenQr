@@ -1,5 +1,6 @@
 import qrcode from 'qrcode'
-import type { ModuleStyle, CornerStyle, GradientType, GradientDirection } from './qr'
+import type { ModuleStyle, CornerStyle, GradientType, GradientDirection, FramePreset } from './qr'
+import { FRAME_PRESET_TEXTS } from './qr'
 
 export interface RenderOptions {
   value: string
@@ -77,6 +78,9 @@ export async function renderPremiumQR(
   canvas: HTMLCanvasElement,
   options: RenderOptions
 ): Promise<void> {
+  if (!canvas || !options) return
+  if (!options.value) return
+
   const {
     value, size, margin, level,
     fgColor, bgColor,
@@ -274,15 +278,24 @@ function roundRect(
   r: number
 ): void {
   ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.lineTo(x + w - r, y)
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-  ctx.lineTo(x + w, y + h - r)
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-  ctx.lineTo(x + r, y + h)
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-  ctx.lineTo(x, y + r)
-  ctx.quadraticCurveTo(x, y, x + r, y)
+
+  // Handle r=0 case (plain rectangle)
+  if (r === 0) {
+    ctx.rect(x, y, w, h)
+    ctx.closePath()
+    return
+  }
+
+  const maxR = Math.min(r, w / 2, h / 2)
+  ctx.moveTo(x + maxR, y)
+  ctx.lineTo(x + w - maxR, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + maxR)
+  ctx.lineTo(x + w, y + h - maxR)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - maxR, y + h)
+  ctx.lineTo(x + maxR, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - maxR)
+  ctx.lineTo(x, y + maxR)
+  ctx.quadraticCurveTo(x, y, x + maxR, y)
   ctx.closePath()
 }
 
@@ -301,6 +314,203 @@ export async function canvasToBlob(
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), type, quality)
   })
+}
+
+// ─── Frame Export Helpers ────────────────────────────
+
+export interface FrameExportOptions {
+  framePreset: FramePreset
+  frameCustomText: string
+  frameColor: string
+  frameBgColor: string
+  frameBorderRadius: number
+  frameBorderThickness: number
+  framePadding: number
+  frameHasShadow: boolean
+  frameRounded: boolean
+  frameOutline: boolean
+}
+
+/**
+ * Renders a QR code with a decorative frame wrapper onto a canvas.
+ * Returns the combined canvas element.
+ */
+export async function renderQRWithFrame(
+  qrOptions: RenderOptions,
+  frameOptions: FrameExportOptions
+): Promise<HTMLCanvasElement> {
+  // First render the QR code to a temporary canvas
+  const qrCanvas = document.createElement('canvas')
+  await renderPremiumQR(qrCanvas, qrOptions)
+
+  const {
+    framePreset,
+    frameCustomText,
+    frameColor,
+    frameBgColor,
+    frameBorderRadius,
+    frameBorderThickness,
+    framePadding,
+    frameRounded,
+    frameOutline,
+  } = frameOptions
+
+  if (framePreset === 'none') {
+    return qrCanvas
+  }
+
+  const frameText = framePreset === 'custom' ? (frameCustomText || 'Custom Frame') : FRAME_PRESET_TEXTS[framePreset]
+  const qrSize = qrOptions.size
+  const borderOffset = frameOutline ? frameBorderThickness : 0
+  const textHeight = frameText ? 40 : 0
+  const textGap = frameText ? 8 : 0
+
+  const totalWidth = qrSize + framePadding * 2 + borderOffset * 2
+  const totalHeight = qrSize + framePadding * 2 + borderOffset * 2 + textHeight + textGap
+
+  const canvas = document.createElement('canvas')
+  canvas.width = totalWidth
+  canvas.height = totalHeight
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return qrCanvas
+
+  const effectiveRadius = frameRounded ? frameBorderRadius : 0
+
+  // Draw frame shadow if enabled (behind background)
+  if (frameOptions.frameHasShadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.3)'
+    ctx.shadowBlur = 24
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 8
+  }
+
+  // Draw frame background
+  ctx.fillStyle = frameBgColor
+  roundRect(ctx, 0, 0, totalWidth, totalHeight, effectiveRadius)
+  ctx.fill()
+
+  // Reset shadow for border and content
+  ctx.shadowColor = 'transparent'
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetX = 0
+  ctx.shadowOffsetY = 0
+
+  // Draw frame border (outline)
+  if (frameOutline && frameBorderThickness > 0) {
+    ctx.strokeStyle = frameColor
+    ctx.lineWidth = frameBorderThickness
+    roundRect(ctx, borderOffset / 2, borderOffset / 2, totalWidth - borderOffset, totalHeight - borderOffset, effectiveRadius)
+    ctx.stroke()
+  }
+
+  // Draw frame text
+  if (frameText) {
+    ctx.fillStyle = frameColor
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const fontSize = Math.max(14, Math.min(24, qrSize / 15))
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+    const textY = borderOffset + framePadding + fontSize / 2 + 4
+    ctx.fillText(frameText, totalWidth / 2, textY)
+  }
+
+  // Paste QR code in center
+  const qrX = borderOffset + framePadding
+  const qrY = borderOffset + framePadding + textHeight + textGap
+  ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize)
+
+  return canvas
+}
+
+
+
+/**
+ * Generates an SVG string that includes frame decoration.
+ */
+export function generateSVGWithFrame(
+  qrOptions: RenderOptions,
+  frameOptions: FrameExportOptions
+): string {
+  const qrSvg = generateSVG(qrOptions)
+
+  const {
+    framePreset,
+    frameCustomText,
+    frameColor,
+    frameBgColor,
+    frameBorderRadius,
+    frameBorderThickness,
+    framePadding,
+    frameRounded,
+    frameOutline,
+  } = frameOptions
+
+  if (framePreset === 'none') {
+    return qrSvg
+  }
+
+  const frameText = framePreset === 'custom' ? (frameCustomText || 'Custom Frame') : FRAME_PRESET_TEXTS[framePreset]
+  const qrSize = qrOptions.size
+  const borderOffset = frameOutline ? frameBorderThickness : 0
+  const textHeight = frameText ? 40 : 0
+  const textGap = frameText ? 8 : 0
+
+  const totalWidth = qrSize + framePadding * 2 + borderOffset * 2
+  const totalHeight = qrSize + framePadding * 2 + borderOffset * 2 + textHeight + textGap
+
+  const effectiveRadius = frameRounded ? frameBorderRadius : 0
+  const parts: string[] = []
+
+  // Frame shadow (SVG filter) - defined before use
+  if (frameOptions.frameHasShadow) {
+    parts.push(`<filter id="frame-shadow" x="-10%" y="-10%" width="130%" height="130%">`)
+    parts.push(`  <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="rgba(0,0,0,0.3)"/>`)
+    parts.push(`</filter>`)
+  }
+
+  // Frame background
+  const bgRadius = effectiveRadius > 0 ? `rx="${effectiveRadius}" ry="${effectiveRadius}"` : ''
+  const bgShadowAttr = frameOptions.frameHasShadow ? ' filter="url(#frame-shadow)"' : ''
+  parts.push(`<rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="${frameBgColor}" ${bgRadius}${bgShadowAttr}/>`)
+
+  // Frame border (outline)
+  if (frameOutline && frameBorderThickness > 0) {
+    const borderR = effectiveRadius > 0 ? `rx="${effectiveRadius}" ry="${effectiveRadius}"` : ''
+    parts.push(`<rect x="${borderOffset / 2}" y="${borderOffset / 2}" width="${totalWidth - borderOffset}" height="${totalHeight - borderOffset}" fill="none" stroke="${frameColor}" stroke-width="${frameBorderThickness}" ${borderR}/>`)
+  }
+
+  // Frame text
+  if (frameText) {
+    const fontSize = Math.max(14, Math.min(24, qrSize / 15))
+    const textY = borderOffset + framePadding + fontSize / 2 + 4
+    parts.push(`<text x="${totalWidth / 2}" y="${textY}" text-anchor="middle" fill="${frameColor}" font-weight="bold" font-size="${fontSize}" font-family="system-ui, -apple-system, sans-serif">${escapeXml(frameText)}</text>`)
+  }
+
+  // Paste QR SVG (extract the inner content, skipping the outer svg wrapper)
+  const qrContent = qrSvg.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '')
+  const qrX = borderOffset + framePadding
+  const qrY = borderOffset + framePadding + textHeight + textGap
+
+  // Wrap everything
+  const frameSvg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}">`,
+    ...parts,
+    `<g transform="translate(${qrX}, ${qrY})">`,
+    qrContent,
+    `</g>`,
+    '</svg>',
+  ].join('\n')
+
+  return frameSvg
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 // ─── SVG Generation ────────────────────────────────────
