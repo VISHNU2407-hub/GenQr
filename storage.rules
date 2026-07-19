@@ -1,0 +1,136 @@
+// ─── Firebase Storage Security Rules for GenQR ────────
+//
+// Deploy: firebase deploy --only storage
+// Test:   firebase emulators:start --only storage
+//
+// Structure:
+//   users/{userId}/logos/{filename}      — QR code logo images
+//   users/{userId}/uploads/{fileId}      — General uploads (future)
+//   users/{userId}/exports/{filename}    — Exported QR files (future)
+// ───────────────────────────────────────────────────────
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Helper Functions ───────────────────────────────
+
+    // Check if the requester is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Get the requesting user's UID
+    function authUID() {
+      return request.auth.uid;
+    }
+
+    // Check if file is an allowed image type
+    // Uses regex to match any image MIME type (image/png, image/jpeg, image/svg+xml, etc.)
+    function isAllowedImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Check file size is within limits (5MB for images)
+    function isValidImageSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Check file size for exports (10MB)
+    function isValidExportSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ─── User's Own Files ──────────────────────────────
+    //
+    // Path: users/{userId}/logos/{filename}
+    // Access: Only the owning authenticated user
+    // Restrictions: Image files only, max 5MB
+    // ─────────────────────────────────────────────────────
+
+    match /users/{userId}/logos/{filename} {
+
+      // Read — only the file owner
+      allow read: if isAuth()
+                  && userId == authUID();
+
+      // Upload — only the file owner, with type & size validation
+      allow create: if isAuth()
+                    && userId == authUID()
+                    && isAllowedImageType()
+                    && isValidImageSize();
+
+      // Overwrite — same as create
+      allow update: if isAuth()
+                    && userId == authUID()
+                    && isAllowedImageType()
+                    && isValidImageSize();
+
+      // Delete — only the file owner
+      allow delete: if isAuth()
+                    && userId == authUID();
+    }
+
+    // ─── User Uploads (future) ─────────────────────────
+    //
+    // Path: users/{userId}/uploads/{fileId}
+    // Access: Only the owning authenticated user
+    // Restrictions: Max 10MB
+    // ─────────────────────────────────────────────────────
+
+    match /users/{userId}/uploads/{fileId} {
+
+      // Read — only the file owner
+      allow read: if isAuth()
+                  && userId == authUID();
+
+      // Upload — only the file owner, with size validation
+      allow create: if isAuth()
+                    && userId == authUID()
+                    && isValidExportSize();
+
+      // Overwrite — same as create
+      allow update: if isAuth()
+                    && userId == authUID()
+                    && isValidExportSize();
+
+      // Delete — only the file owner
+      allow delete: if isAuth()
+                    && userId == authUID();
+    }
+
+    // ─── QR Exports (future) ───────────────────────────
+    //
+    // Path: users/{userId}/exports/{filename}
+    // Access: Public read for shared QR codes
+    //         Write restricted to file owner
+    // ─────────────────────────────────────────────────────
+
+    match /users/{userId}/exports/{filename} {
+
+      // Read — public (shared QR codes need to be accessible)
+      allow read: if true;
+
+      // Upload — only the file owner, with size validation
+      allow create: if isAuth()
+                    && userId == authUID()
+                    && isValidExportSize();
+
+      // Overwrite — same as create
+      allow update: if isAuth()
+                    && userId == authUID()
+                    && isValidExportSize();
+
+      // Delete — only the file owner
+      allow delete: if isAuth()
+                    && userId == authUID();
+    }
+
+    // ─── Default Deny ──────────────────────────────────
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

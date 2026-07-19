@@ -1,0 +1,194 @@
+// ─── Firestore Security Rules for GenQR ────────────────
+//
+// Deploy: firebase deploy --only firestore:rules
+// Test:   firebase emulators:start --only firestore
+//
+// Collections:
+//   users/{uid}          — User profiles and stats
+//   generated_qrs/{id}   — Generated QR code records
+//   uploaded_files/{id}  — (future) User uploaded files
+//   analytics/{id}       — (future) Analytics data
+// ───────────────────────────────────────────────────────
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ───────────────────────────────
+
+    // Check if the requester is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Get the requesting user's UID
+    function authUID() {
+      return request.auth.uid;
+    }
+
+    // Check if the document key matches the authenticated user's UID
+    // NOTE: For single-document reads (getDoc), also check resource.data.uid
+    // for defense in depth (see users collection read rule)
+    function isOwner(userId) {
+      return isAuth() && userId == authUID();
+    }
+
+    // Check if this is a create request (document does not exist yet)
+    function isCreate() {
+      return request.method == 'create';
+    }
+
+    // Check if this is an update request (document already exists)
+    function isUpdate() {
+      return request.method == 'update';
+    }
+
+    // Check if this is a delete request
+    function isDelete() {
+      return request.method == 'delete';
+    }
+
+    // Validate that the resource has the expected fields for a user doc
+    function isValidUserData() {
+      return (
+        request.resource.data.keys().hasAll(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'lastLogin', 'provider', 'plan', 'totalGeneratedQR', 'totalDownloads', 'totalScans'])
+      );
+    }
+
+    // Validate that the resource has the expected fields for a QR doc
+    function isValidQRCodeData() {
+      return (
+        request.resource.data.keys().hasAll(['userId', 'type', 'content', 'createdAt', 'downloadCount', 'scanCount']) &&
+        request.resource.data.keys().hasAny(['style', 'colors', 'frame', 'logo'])
+      );
+    }
+
+    // ─── Users Collection ──────────────────────────────
+    //
+    // Document ID: Firebase Auth UID
+    //
+    // Read:   User can only read their own document
+    // Create: User can create their own document on first login
+    //         Must include uid matching their auth.uid
+    // Update: User can update their own document
+    //         Allowed fields: lastLogin, totalGeneratedQR,
+    //         totalDownloads, totalScans, plan
+    // Delete: Not allowed (account deletion handled separately)
+    // ─────────────────────────────────────────────────────
+
+    match /users/{userId} {
+
+      // Read — only the document owner
+      // Checks both document path (userId == authUID) and data (uid field)
+      // NOTE: For list queries, resource.data may not be available at query
+      // validation time. Firestore will reject queries that cannot be proven
+      // to match the rule. Always query with where('uid', '==', auth.uid).
+      allow read: if isOwner(userId) && resource.data.uid == authUID();
+
+      // Create — only when:
+      //   - User is authenticated
+      //   - Document doesn't already exist (enforced client-side but validate here)
+      //   - The uid field in the data matches auth.uid
+      //   - Data has all required fields
+      //   - Initial values are valid (plan = "Free", counters = 0)
+      allow create: if isAuth()
+                    && request.resource.data.uid == authUID()
+                    && request.resource.data.plan == 'Free'
+                    && request.resource.data.totalGeneratedQR == 0
+                    && request.resource.data.totalDownloads == 0
+                    && request.resource.data.totalScans == 0
+                    && isValidUserData();
+
+      // Update — only the document owner
+      // Only specific fields can be modified
+      allow update: if isOwner(userId)
+                    && (
+                      // Allow updating lastLogin only
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin']))
+                      ||
+                      // Allow incrementing stats
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalGeneratedQR', 'totalDownloads', 'totalScans', 'lastLogin'])
+                        && request.resource.data.totalGeneratedQR >= resource.data.totalGeneratedQR
+                        && request.resource.data.totalDownloads >= resource.data.totalDownloads
+                        && request.resource.data.totalScans >= resource.data.totalScans
+                        && request.resource.data.uid == resource.data.uid
+                        && request.resource.data.displayName == resource.data.displayName
+                        && request.resource.data.email == resource.data.email
+                        && request.resource.data.plan == resource.data.plan
+                        && request.resource.data.createdAt == resource.data.createdAt
+                        && request.resource.data.provider == resource.data.provider
+                      )
+                    );
+
+      // Delete — not allowed (prevents accidental or malicious deletion)
+      allow delete: if false;
+    }
+
+    // ─── Generated QRs Collection ──────────────────────
+    //
+    // Document ID: Auto-generated (push ID)
+    //
+    // Read:   User can only read their own QR codes
+    //         (must query with userId == auth.uid)
+    // Create: User can create QR codes tied to their account
+    //         userId field must match auth.uid
+    // Update: User can update downloadCount and scanCount
+    // Delete: User can delete their own QR codes
+    // ─────────────────────────────────────────────────────
+
+    match /generated_qrs/{qrId} {
+
+      // Read — only QR codes owned by the authenticated user
+      allow read: if isAuth()
+                   && resource.data.userId == authUID();
+
+      // Create — validate ownership and structure
+      allow create: if isAuth()
+                    && request.resource.data.userId == authUID()
+                    && isValidQRCodeData()
+                    && request.resource.data.downloadCount == 0
+                    && request.resource.data.scanCount == 0;
+
+      // Update — only update allowed fields (counters only)
+      allow update: if isAuth()
+                    && resource.data.userId == authUID()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['downloadCount', 'scanCount'])
+                    && request.resource.data.downloadCount >= resource.data.downloadCount
+                    && request.resource.data.scanCount >= resource.data.scanCount
+                    // Prevent changing ownership or type
+                    && request.resource.data.userId == resource.data.userId
+                    && request.resource.data.type == resource.data.type;
+
+      // Delete — only QR codes owned by the user
+      allow delete: if isAuth()
+                    && resource.data.userId == authUID();
+    }
+
+    // ─── Future Collections (placeholder) ───────────────
+
+    // Uploaded files — user can only manage their own files
+    // NOTE: For list queries on this collection, always filter with
+    // where('userId', '==', auth.uid) to ensure Firestore can validate
+    // the query against these rules at the collection level.
+    match /uploaded_files/{fileId} {
+      allow read: if isAuth() && resource.data.userId == authUID();
+      allow create: if isAuth() && request.resource.data.userId == authUID();
+      allow update: if isAuth() && resource.data.userId == authUID();
+      allow delete: if isAuth() && resource.data.userId == authUID();
+    }
+
+    // Analytics — read-only for the owning user
+    match /analytics/{analyticId} {
+      allow read: if isAuth()
+                   && resource.data.userId == authUID();
+      allow create, update, delete: if false;
+    }
+
+    // ─── Default Deny ──────────────────────────────────
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

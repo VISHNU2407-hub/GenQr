@@ -5,6 +5,9 @@ import type { TemplateId, TemplateFormData, QRCustomization } from '../utils/qr'
 import { DEFAULT_CUSTOMIZATION, generateTemplateQRValue, validateTemplateForm } from '../utils/qr'
 import { canvasToBlob, generateSVG, generateSVGWithFrame, renderPremiumQR, renderQRWithFrame } from '../utils/qrRenderer'
 import type { FrameExportOptions } from '../utils/qrRenderer'
+import { useAuth } from '../contexts/AuthContext'
+import { saveGeneratedQR } from '../utils/firestore'
+import AuthGate from './AuthGate'
 import QRContentSection from './QRContentSection'
 import QRTypeBar from './QRTypeBar'
 import ColorSection from './ColorSection'
@@ -38,6 +41,7 @@ export default function QRGenerator() {
   const [toastType, setToastType] = useState<'error' | 'success'>('error')
   const [showToast, setShowToast] = useState(false)
 
+  const { user } = useAuth()
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const showToastMsg = useCallback((message: string, type: 'error' | 'success' = 'error') => {
@@ -85,7 +89,7 @@ export default function QRGenerator() {
   }, [])
 
   // ── Generate ──
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     if (!selectedTemplate) {
       showToastMsg('Please select a QR type', 'error')
       return
@@ -107,13 +111,69 @@ export default function QRGenerator() {
     setIsGenerating(true)
     setQrValue(value)
 
+    let saveCompleted = false
+    let saveErrorMessage: string | null = null
+
+    // Save to Firestore if authenticated
+    if (user) {
+      try {
+        await saveGeneratedQR(user.uid, {
+          userId: user.uid,
+          type: selectedTemplate,
+          content: value,
+          style: {
+            moduleStyle: customization.moduleStyle,
+            cornerStyle: customization.cornerStyle,
+            size: customization.size,
+            margin: customization.margin,
+            level: customization.level,
+          },
+          colors: {
+            fgColor: customization.fgColor,
+            bgColor: customization.bgColor,
+            gradientType: customization.gradientType,
+            gradientColor1: customization.gradientColor1,
+            gradientColor2: customization.gradientColor2,
+            gradientDirection: customization.gradientDirection,
+          },
+          frame: {
+            framePreset: customization.framePreset,
+            frameStyle: customization.frameStyle,
+            frameColor: customization.frameColor,
+            frameBgColor: customization.frameBgColor,
+            frameCustomText: customization.frameCustomText,
+          },
+          logo: {
+            hasLogo: !!customization.logoDataUrl,
+            logoSize: customization.logoSize,
+          },
+        })
+        saveCompleted = true
+      } catch (err: any) {
+        console.error('Failed to save QR to Firestore:', err)
+        const message = err?.code === 'permission-denied'
+          ? 'Permission denied. Please sign out and sign in again.'
+          : err?.message || 'Failed to save QR code to your account'
+        saveErrorMessage = message
+      }
+    } else {
+      // Not logged in — still let them see/download the QR
+      saveCompleted = true
+    }
+
     // Small delay for visual feedback
     setTimeout(() => {
       setIsGenerating(false)
       setIsGenerated(true)
-      showToastMsg('QR Code generated successfully!', 'success')
+
+      if (saveCompleted) {
+        showToastMsg('QR Code generated successfully!', 'success')
+      } else if (saveErrorMessage) {
+        // Show a warning: generated on screen but NOT saved
+        showToastMsg(`QR generated but NOT saved: ${saveErrorMessage}`, 'error')
+      }
     }, 400)
-  }, [selectedTemplate, formData, showToastMsg])
+  }, [selectedTemplate, formData, customization, user, showToastMsg])
 
   // ── Build render options ──
   const getRenderOptions = useCallback(() => ({
@@ -296,41 +356,43 @@ export default function QRGenerator() {
 
               {/* Left Panel - Controls (renders SECOND on mobile) */}
               <div className="w-full lg:w-[40%] space-y-4 order-last lg:order-none">
-                <QRContentSection
-                  selectedTemplate={selectedTemplate}
-                  formData={formData}
-                  validationError={validationError}
-                  onFormDataChange={handleFormDataChange}
-                />
-                <ColorSection
-                  customization={customization}
-                  onChange={handleCustomizationChange}
-                />
-                <StyleSection
-                  customization={customization}
-                  onChange={handleCustomizationChange}
-                />
-                <FrameSection
-                  customization={customization}
-                  onChange={handleCustomizationChange}
-                />
-                <LogoSection
-                  customization={customization}
-                  onChange={handleCustomizationChange}
-                  onError={handleLogoError}
-                />
-                <GenerateSection
-                  onGenerate={handleGenerate}
-                  isGenerating={isGenerating}
-                  isGenerated={isGenerated}
-                  disabled={!canGenerate}
-                />
-                <ExportSection
-                  onDownloadPNG={handleDownloadPNG}
-                  onDownloadSVG={handleDownloadSVG}
-                  onDownloadJPG={handleDownloadJPG}
-                  disabled={!isGenerated}
-                />
+                <AuthGate message="Sign in with Google to generate and manage your QR Codes.">
+                  <QRContentSection
+                    selectedTemplate={selectedTemplate}
+                    formData={formData}
+                    validationError={validationError}
+                    onFormDataChange={handleFormDataChange}
+                  />
+                  <ColorSection
+                    customization={customization}
+                    onChange={handleCustomizationChange}
+                  />
+                  <StyleSection
+                    customization={customization}
+                    onChange={handleCustomizationChange}
+                  />
+                  <FrameSection
+                    customization={customization}
+                    onChange={handleCustomizationChange}
+                  />
+                  <LogoSection
+                    customization={customization}
+                    onChange={handleCustomizationChange}
+                    onError={handleLogoError}
+                  />
+                  <GenerateSection
+                    onGenerate={handleGenerate}
+                    isGenerating={isGenerating}
+                    isGenerated={isGenerated}
+                    disabled={!canGenerate}
+                  />
+                  <ExportSection
+                    onDownloadPNG={handleDownloadPNG}
+                    onDownloadSVG={handleDownloadSVG}
+                    onDownloadJPG={handleDownloadJPG}
+                    disabled={!isGenerated}
+                  />
+                </AuthGate>
               </div>
             </div>
           </motion.div>
