@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react'
 import type { GradientType, GradientDirection } from '../utils/qr'
 
 interface GradientPickerProps {
@@ -35,15 +36,15 @@ export default function GradientPicker({
   return (
     <div className="space-y-3">
       {/* Type selector */}
-      <div className="flex gap-1.5 p-1 bg-white/[0.03] rounded-lg border border-white/5">
+      <div className="flex gap-1.5 p-1 bg-secondary/30 rounded-lg border border-border">
         {types.map((t) => (
           <button
             key={t.value}
             onClick={() => onChange({ gradientType: t.value })}
             className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-all ${
               gradientType === t.value
-                ? 'bg-primary/20 text-primary border border-primary/30'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             {t.label}
@@ -56,18 +57,18 @@ export default function GradientPicker({
           {/* Two color pickers */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <span className="text-xs text-slate-400">Color 1</span>
+              <span className="text-xs text-text-secondary">Color 1</span>
               <div className="relative">
                 <input
                   type="color"
                   value={gradientColor1}
-                  onChange={(e) => onChange({ gradientColor1: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => onChange({ gradientColor1: e.target.value })}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   aria-label="Gradient color 1"
                 />
-                <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 font-mono">
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-xs text-text-secondary font-mono">
                   <span
-                    className="w-5 h-5 rounded-md border border-white/10"
+                    className="w-5 h-5 rounded-md border border-border"
                     style={{ backgroundColor: gradientColor1 }}
                   />
                   {gradientColor1.toUpperCase()}
@@ -75,18 +76,18 @@ export default function GradientPicker({
               </div>
             </div>
             <div className="space-y-1.5">
-              <span className="text-xs text-slate-400">Color 2</span>
+              <span className="text-xs text-text-secondary">Color 2</span>
               <div className="relative">
                 <input
                   type="color"
                   value={gradientColor2}
-                  onChange={(e) => onChange({ gradientColor2: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => onChange({ gradientColor2: e.target.value })}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   aria-label="Gradient color 2"
                 />
-                <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 font-mono">
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-xs text-text-secondary font-mono">
                   <span
-                    className="w-5 h-5 rounded-md border border-white/10"
+                    className="w-5 h-5 rounded-md border border-border"
                     style={{ backgroundColor: gradientColor2 }}
                   />
                   {gradientColor2.toUpperCase()}
@@ -98,16 +99,16 @@ export default function GradientPicker({
           {/* Direction selector */}
           {gradientType === 'linear' && (
             <div className="space-y-1.5">
-              <span className="text-xs text-slate-400">Direction</span>
-              <div className="flex gap-1.5 p-1 bg-white/[0.03] rounded-lg border border-white/5">
+              <span className="text-xs text-text-secondary">Direction</span>
+              <div className="flex gap-1.5 p-1 bg-secondary/30 rounded-lg border border-border">
                 {directions.map((d) => (
                   <button
                     key={d.value}
                     onClick={() => onChange({ gradientDirection: d.value })}
                     className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-all ${
                       gradientDirection === d.value
-                        ? 'bg-primary/20 text-primary border border-primary/30'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-text-secondary hover:text-text-primary'
                     }`}
                   >
                     {d.label}

@@ -19,8 +19,8 @@ export default function FrameSelector({ value, onChange }: FrameSelectorProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Frame className="w-4 h-4 text-slate-500" />
-        <span className="text-sm text-slate-300 font-medium">Frame</span>
+        <Frame className="w-4 h-4 text-text-secondary" />
+        <span className="text-sm text-text-primary font-medium">Frame</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {options.map((opt) => (
@@ -29,8 +29,8 @@ export default function FrameSelector({ value, onChange }: FrameSelectorProps) {
             onClick={() => onChange(opt.value)}
             className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${
               value === opt.value
-                ? 'bg-primary/10 border-primary/30 text-primary'
-                : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10'
+                ? 'bg-primary-light border-primary/30 text-primary'
+                : 'bg-secondary/30 border-border text-text-secondary hover:text-text-primary hover:bg-secondary/50'
             }`}
           >
             <span className="text-xs font-medium">{opt.label}</span>

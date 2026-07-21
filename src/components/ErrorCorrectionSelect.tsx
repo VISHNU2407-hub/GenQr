@@ -19,18 +19,18 @@ export default function ErrorCorrectionSelect({ value, onChange }: ErrorCorrecti
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Shield className="w-4 h-4 text-slate-500" />
-        <span className="text-sm text-slate-300 font-medium">Error Correction</span>
+        <Shield className="w-4 h-4 text-text-secondary" />
+        <span className="text-sm text-text-primary font-medium">Error Correction</span>
       </div>
       <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value as ErrorCorrectionLevel)}
-          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none transition-all duration-200 input-glow focus:border-primary/40 appearance-none cursor-pointer text-sm"
+          className="select-field"
           aria-label="Error correction level"
         >
           {levels.map((level) => (
-            <option key={level.value} value={level.value} className="bg-dark-card text-white">
+            <option key={level.value} value={level.value} className="bg-card-bg text-text-primary">
               {level.label} &mdash; {level.desc}
             </option>
           ))}
@@ -46,13 +46,13 @@ export default function ErrorCorrectionSelect({ value, onChange }: ErrorCorrecti
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="text-slate-500"
+            className="text-text-secondary"
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </div>
       </div>
-      <p className="text-xs text-slate-600">{current?.desc}</p>
+      <p className="text-xs text-text-secondary/60">{current?.desc}</p>
     </div>
   )
 }

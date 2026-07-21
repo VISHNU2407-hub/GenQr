@@ -68,7 +68,7 @@
       try {
         // Check if qrcode is available
         if (typeof qrcode === 'undefined') {
-          setStatus('❌ qrcode library not loaded', 'error');
+          setStatus('[X]  qrcode library not loaded', 'error');
           return;
         }
 
@@ -127,13 +127,13 @@
           ctx.drawImage(logoImg, x, y, w, h);
           
           console.log('Logo drawn at center:', {x, y, w, h});
-          setStatus('✅ Logo rendered successfully at center of QR code!', 'success');
+          setStatus('[OK]  Logo rendered successfully at center of QR code!', 'success');
         } else {
-          setStatus('✅ QR code rendered (no logo)', 'info');
+          setStatus('[OK]  QR code rendered (no logo)', 'info');
         }
       } catch (err) {
         console.error('Render error:', err);
-        setStatus('❌ Error: ' + err.message, 'error');
+        setStatus('[X]  Error: ' + err.message, 'error');
       }
     }
 
@@ -163,7 +163,7 @@
       if (testLogoImg) {
         renderQRWithLogo(testLogoImg);
       } else {
-        setStatus('❌ Test logo not loaded yet', 'error');
+        setStatus('[X]  Test logo not loaded yet', 'error');
       }
     });
   </script>

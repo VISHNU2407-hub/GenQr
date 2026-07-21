@@ -12,15 +12,14 @@ interface ExportSectionProps {
 export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownloadJPG, disabled }: ExportSectionProps) {
   return (
     <CollapsibleSection title="Export" icon={Download} defaultOpen={true}>
-      {/* Disabled overlay message */}
       {disabled && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-500/5 border border-slate-500/10 mb-3"
+          className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-secondary/30 border border-border mb-3"
         >
-          <Lock className="w-4 h-4 text-slate-500 shrink-0" />
-          <span className="text-xs text-slate-500">
+          <Lock className="w-4 h-4 text-text-secondary shrink-0" />
+          <span className="text-xs text-text-secondary">
             Generate a QR code first to enable export options
           </span>
         </motion.div>
@@ -32,8 +31,8 @@ export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownload
           disabled={disabled}
           className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
             !disabled
-              ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
-              : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+              ? 'bg-card-bg border-border text-text-secondary hover:text-text-primary hover:bg-secondary/30 hover:border-primary/30 active:scale-[0.98]'
+              : 'bg-secondary/20 border-border text-text-secondary/40 cursor-not-allowed opacity-50'
           }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -48,8 +47,8 @@ export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownload
           disabled={disabled}
           className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
             !disabled
-              ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
-              : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+              ? 'bg-card-bg border-border text-text-secondary hover:text-text-primary hover:bg-secondary/30 hover:border-primary/30 active:scale-[0.98]'
+              : 'bg-secondary/20 border-border text-text-secondary/40 cursor-not-allowed opacity-50'
           }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,8 +62,8 @@ export default function ExportSection({ onDownloadPNG, onDownloadSVG, onDownload
           disabled={disabled}
           className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-xl border transition-all duration-200 ${
             !disabled
-              ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]'
-              : 'bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+              ? 'bg-card-bg border-border text-text-secondary hover:text-text-primary hover:bg-secondary/30 hover:border-primary/30 active:scale-[0.98]'
+              : 'bg-secondary/20 border-border text-text-secondary/40 cursor-not-allowed opacity-50'
           }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

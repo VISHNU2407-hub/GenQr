@@ -1,3 +1,5 @@
+import { type LucideIcon, Globe, Wifi, Briefcase, Mail, Phone, MessageSquare, MessageCircle, MapPin, Calendar, UtensilsCrossed, Palette, FileText, Heart, Eye, Smartphone, Link, Files } from 'lucide-react'
+
 // ─── Template Definitions ─────────────────────────────
 
 export type TemplateId =
@@ -14,6 +16,7 @@ export type TemplateId =
   | 'restaurant-menu'
   | 'portfolio'
   | 'social-media'
+  | 'batch-qr'
 
 export interface TemplateField {
   key: string
@@ -28,7 +31,7 @@ export interface TemplateInfo {
   id: TemplateId
   label: string
   description: string
-  icon: string
+  icon: LucideIcon
   color: string
   fields: TemplateField[]
 }
@@ -50,7 +53,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'website',
     label: 'Website',
     description: 'Link to any website or landing page',
-    icon: '🌐',
+    icon: Globe,
     color: '#3B82F6',
     fields: [
       { key: 'url', label: 'URL', type: 'url', placeholder: 'https://example.com', required: true },
@@ -60,7 +63,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'wifi',
     label: 'WiFi',
     description: 'Share WiFi network credentials',
-    icon: '📶',
+    icon: Wifi,
     color: '#10B981',
     fields: [
       { key: 'ssid', label: 'Network Name (SSID)', type: 'text', placeholder: 'My WiFi Network', required: true },
@@ -73,7 +76,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'business-card',
     label: 'Business Card',
     description: 'Digital vCard with contact details',
-    icon: '👔',
+    icon: Briefcase,
     color: '#8B5CF6',
     fields: [
       { key: 'name', label: 'Full Name', type: 'text', placeholder: 'John Doe', required: true },
@@ -89,7 +92,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'email',
     label: 'Email',
     description: 'Pre-composed email message',
-    icon: '📧',
+    icon: Mail,
     color: '#EF4444',
     fields: [
       { key: 'email', label: 'Recipient Email', type: 'email', placeholder: 'recipient@example.com', required: true },
@@ -101,7 +104,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'phone',
     label: 'Phone',
     description: 'Call a phone number',
-    icon: '📞',
+    icon: Phone,
     color: '#F59E0B',
     fields: [
       { key: 'phone', label: 'Phone Number', type: 'tel', placeholder: '+1234567890', required: true },
@@ -111,7 +114,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'sms',
     label: 'SMS',
     description: 'Pre-written text message',
-    icon: '💬',
+    icon: MessageSquare,
     color: '#06B6D4',
     fields: [
       { key: 'phone', label: 'Phone Number', type: 'tel', placeholder: '+1234567890', required: true },
@@ -122,7 +125,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'whatsapp',
     label: 'WhatsApp',
     description: 'Start a WhatsApp chat',
-    icon: '💚',
+    icon: MessageCircle,
     color: '#25D366',
     fields: [
       { key: 'phone', label: 'Phone Number', type: 'tel', placeholder: '+1234567890', required: true },
@@ -133,7 +136,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'location',
     label: 'Location',
     description: 'GPS coordinates for navigation',
-    icon: '📍',
+    icon: MapPin,
     color: '#EC4899',
     fields: [
       { key: 'latitude', label: 'Latitude', type: 'number', placeholder: '37.7749', required: true },
@@ -144,7 +147,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'event',
     label: 'Event',
     description: 'Calendar event details',
-    icon: '📅',
+    icon: Calendar,
     color: '#F97316',
     fields: [
       { key: 'title', label: 'Event Title', type: 'text', placeholder: 'Team Meeting', required: true },
@@ -157,7 +160,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'restaurant-menu',
     label: 'Restaurant Menu',
     description: 'Link to online menu',
-    icon: '🍽',
+    icon: UtensilsCrossed,
     color: '#A855F7',
     fields: [
       { key: 'url', label: 'Menu URL', type: 'url', placeholder: 'https://menu.example.com', required: true },
@@ -167,7 +170,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'portfolio',
     label: 'Portfolio',
     description: 'Showcase your work',
-    icon: '🎨',
+    icon: Palette,
     color: '#14B8A6',
     fields: [
       { key: 'url', label: 'Portfolio URL', type: 'url', placeholder: 'https://myportfolio.com', required: true },
@@ -177,7 +180,7 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'text',
     label: 'Text',
     description: 'Encode any text into a QR code',
-    icon: '📝',
+    icon: FileText,
     color: '#64748B',
     fields: [
       { key: 'text', label: 'Text Content', type: 'textarea', placeholder: 'Enter any text...', required: true },
@@ -187,11 +190,21 @@ export const TEMPLATES: TemplateInfo[] = [
     id: 'social-media',
     label: 'Social Media',
     description: 'Link to your social profile',
-    icon: '❤️',
+    icon: Heart,
     color: '#E11D48',
     fields: [
       { key: 'platform', label: 'Platform', type: 'select', placeholder: '', required: true, options: SOCIAL_PLATFORMS },
       { key: 'username', label: 'Username / Profile URL', type: 'text', placeholder: '@username or full URL', required: true },
+    ],
+  },
+  {
+    id: 'batch-qr',
+    label: 'Batch QR',
+    description: 'Generate multiple QR codes at once',
+    icon: Files,
+    color: '#6B7280',
+    fields: [
+      { key: 'entries', label: 'Entries', type: 'textarea', placeholder: 'One entry per line', required: true },
     ],
   },
 ]
@@ -234,17 +247,17 @@ export const FRAME_PRESET_TEXTS: Record<FramePreset, string> = {
   'custom': '',
 }
 
-export const FRAME_PRESET_ICONS: Record<FramePreset, string> = {
-  'none': '',
-  'scan-me': '👁',
-  'scan-to-visit': '🌐',
-  'download-app': '📱',
-  'scan-for-wifi': '📶',
-  'contact-me': '📞',
-  'view-menu': '🍽',
-  'follow-us': '❤',
-  'open-website': '🔗',
-  'custom': '',
+export const FRAME_PRESET_ICONS: Record<FramePreset, LucideIcon | null> = {
+  'none': null,
+  'scan-me': Eye,
+  'scan-to-visit': Globe,
+  'download-app': Smartphone,
+  'scan-for-wifi': Wifi,
+  'contact-me': Phone,
+  'view-menu': UtensilsCrossed,
+  'follow-us': Heart,
+  'open-website': Link,
+  'custom': null,
 }
 
 export interface QRCustomization {

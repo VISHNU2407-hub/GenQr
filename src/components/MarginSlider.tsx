@@ -13,8 +13,8 @@ export default function MarginSlider({ value, onChange }: MarginSliderProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-slate-300 font-medium">Margin</span>
-        <span className="text-sm text-slate-400 font-mono tabular-nums">{value}</span>
+        <span className="text-sm text-text-primary font-medium">Margin</span>
+        <span className="text-sm text-text-secondary font-mono tabular-nums">{value}</span>
       </div>
       <input
         type="range"
@@ -26,7 +26,7 @@ export default function MarginSlider({ value, onChange }: MarginSliderProps) {
         className="custom-slider w-full"
         aria-label="QR code margin"
       />
-      <div className="flex justify-between text-xs text-slate-600">
+      <div className="flex justify-between text-xs text-text-secondary/60">
         <span>0</span>
         <span>40</span>
       </div>

@@ -11,7 +11,6 @@ import {
   limit,
   startAfter,
   getDocs,
-  deleteDoc,
   serverTimestamp,
   Timestamp,
   increment,
@@ -33,6 +32,9 @@ export interface UserProfile {
   totalGeneratedQR: number
   totalDownloads: number
   totalScans: number
+  totalFavorites: number
+  totalShares: number
+  totalBatchQRs: number
 }
 
 export async function createUserDocument(user: User): Promise<void> {
@@ -52,6 +54,9 @@ export async function createUserDocument(user: User): Promise<void> {
       totalGeneratedQR: 0,
       totalDownloads: 0,
       totalScans: 0,
+      totalFavorites: 0,
+      totalShares: 0,
+      totalBatchQRs: 0,
     })
   } else {
     await updateDoc(userRef, {
@@ -79,6 +84,7 @@ export interface GeneratedQR {
   createdAt: Timestamp
   downloadCount: number
   scanCount: number
+  favorite?: boolean
 }
 
 export async function saveGeneratedQR(
@@ -193,7 +199,7 @@ export async function duplicateQRCode(qrId: string, userId: string): Promise<str
   if (!qrSnap.exists()) return null
 
   const data = qrSnap.data() as GeneratedQR
-  const { id, createdAt, downloadCount, scanCount, ...rest } = data
+  const { id: _id, createdAt: _createdAt, downloadCount: _downloadCount, scanCount: _scanCount, ...rest } = data
 
   try {
     const newId = await saveGeneratedQR(userId, rest)
@@ -234,6 +240,225 @@ export async function incrementScanCount(qrId: string, userId: string): Promise<
     transaction.update(userRef, {
       totalScans: increment(1),
     })
+  })
+}
+
+export async function toggleFavorite(qrId: string, userId: string, currentFavorite: boolean): Promise<boolean> {
+  const qrRef = doc(db, 'generated_qrs', qrId)
+  const userRef = doc(db, 'users', userId)
+
+  await runTransaction(db, async (transaction) => {
+    transaction.update(qrRef, {
+      favorite: !currentFavorite,
+    })
+    transaction.update(userRef, {
+      totalFavorites: increment(currentFavorite ? -1 : 1),
+    })
+  })
+
+  return !currentFavorite
+}
+
+// ─── Activity Log Types & Functions ────────────────────
+
+export type ActivityType =
+  | 'generated'
+  | 'downloaded'
+  | 'shared'
+  | 'batch_generated'
+  | 'favorite_added'
+  | 'favorite_removed'
+
+export interface ActivityLogEntry {
+  id?: string
+  userId: string
+  activityType: ActivityType
+  qrType?: string
+  qrContent?: string
+  qrName?: string
+  batchCount?: number
+  timestamp: Timestamp
+}
+
+/**
+ * Log a user activity event to their activity_log subcollection.
+ */
+export async function logActivity(
+  userId: string,
+  activity: Omit<ActivityLogEntry, 'id' | 'timestamp' | 'userId'>
+): Promise<void> {
+  const activityRef = doc(collection(db, 'users', userId, 'activity_log'))
+  await setDoc(activityRef, {
+    ...activity,
+    userId,
+    timestamp: serverTimestamp(),
+  })
+}
+
+/**
+ * Fetch the most recent activity logs for a user.
+ */
+export async function getRecentActivities(
+  userId: string,
+  maxResults: number = 20
+): Promise<ActivityLogEntry[]> {
+  const activitiesRef = collection(db, 'users', userId, 'activity_log')
+  const q = query(
+    activitiesRef,
+    orderBy('timestamp', 'desc'),
+    limit(maxResults)
+  )
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as ActivityLogEntry[]
+}
+
+/**
+ * Get activity counts grouped by type for a given time period.
+ * Counts items in the activity_log subcollection.
+ */
+export async function getActivityStats(
+  userId: string,
+  days: number = 30
+): Promise<Record<ActivityType, number>> {
+  const activitiesRef = collection(db, 'users', userId, 'activity_log')
+  const cutoff = new Date(Date.now() - days * 86400000)
+  const q = query(
+    activitiesRef,
+    where('timestamp', '>=', Timestamp.fromDate(cutoff)),
+    orderBy('timestamp', 'desc')
+  )
+  const snapshot = await getDocs(q)
+  const counts: Record<string, number> = {
+    generated: 0,
+    downloaded: 0,
+    shared: 0,
+    batch_generated: 0,
+    favorite_added: 0,
+    favorite_removed: 0,
+  }
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data() as ActivityLogEntry
+    if (counts[data.activityType] !== undefined) {
+      counts[data.activityType]++
+    }
+  })
+  return counts as Record<ActivityType, number>
+}
+
+/**
+ * Get daily activity counts for charting.
+ * Returns an array of { date: string, count: number } for the last N days.
+ * Only counts 'generated' and 'batch_generated' activity types.
+ */
+export async function getDailyActivityCounts(
+  userId: string,
+  days: number = 30
+): Promise<{ date: string; count: number }[]> {
+  const activitiesRef = collection(db, 'users', userId, 'activity_log')
+  const cutoff = new Date(Date.now() - days * 86400000)
+  let snapshot
+  try {
+    const q = query(
+      activitiesRef,
+      where('timestamp', '>=', Timestamp.fromDate(cutoff)),
+      orderBy('timestamp', 'desc')
+    )
+    snapshot = await getDocs(q)
+  } catch (err) {
+    console.error('Failed to query activity logs (index may need creation):', err)
+    // Fallback: try without the composite index
+    try {
+      const q = query(
+        activitiesRef,
+        orderBy('timestamp', 'desc'),
+        limit(100)
+      )
+      snapshot = await getDocs(q)
+    } catch (fallbackErr) {
+      console.error('Fallback activity query also failed:', fallbackErr)
+      // Build empty day buckets
+      const dayMap = new Map<string, number>()
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 86400000)
+        const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        dayMap.set(key, 0)
+      }
+      return Array.from(dayMap.entries()).map(([date, count]) => ({ date, count }))
+    }
+  }
+
+  // Build day buckets
+  const dayMap = new Map<string, number>()
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000)
+    const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    dayMap.set(key, 0)
+  }
+
+  snapshot!.docs.forEach((doc) => {
+    const data = doc.data()
+    const ts = data.timestamp as Timestamp
+    const activityType = data.activityType as string
+    // Only count generation activities for the chart
+    if (activityType !== 'generated' && activityType !== 'batch_generated') return
+    if (ts?.toDate) {
+      const key = ts.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      if (dayMap.has(key)) {
+        dayMap.set(key, (dayMap.get(key) || 0) + 1)
+      }
+    }
+  })
+
+  return Array.from(dayMap.entries())
+    .map(([date, count]) => ({ date, count }))
+}
+
+/**
+ * Get QR type distribution counts.
+ * Uses a limit to avoid expensive full collection scans.
+ */
+export async function getQRTypeDistribution(
+  userId: string
+): Promise<{ name: string; value: number }[]> {
+  const qrsRef = collection(db, 'generated_qrs')
+  const q = query(qrsRef, where('userId', '==', userId), limit(500))
+  try {
+    const snapshot = await getDocs(q)
+    const typeCounts = new Map<string, number>()
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data()
+      const type = (data.type as string) || 'unknown'
+      typeCounts.set(type, (typeCounts.get(type) || 0) + 1)
+    })
+    return Array.from(typeCounts.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  } catch (err) {
+    console.error('Failed to get QR type distribution:', err)
+    return []
+  }
+}
+
+/**
+ * Increment share count on a QR document and user profile.
+ */
+export async function incrementShareCount(userId: string): Promise<void> {
+  const userRef = doc(db, 'users', userId)
+  await updateDoc(userRef, {
+    totalShares: increment(1),
+  })
+}
+
+/**
+ * Increment batch QR count on user profile.
+ */
+export async function incrementBatchCount(userId: string, count: number): Promise<void> {
+  const userRef = doc(db, 'users', userId)
+  await updateDoc(userRef, {
+    totalBatchQRs: increment(count),
   })
 }
 

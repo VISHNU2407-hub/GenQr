@@ -20,17 +20,17 @@ export default function StyleSection({ customization, onChange }: StyleSectionPr
         value={customization.moduleStyle}
         onChange={(moduleStyle) => onChange({ moduleStyle })}
       />
-      <div className="border-t border-white/5" />
+      <hr className="divider" />
       <CornerStyleSelector
         value={customization.cornerStyle}
         onChange={(cornerStyle) => onChange({ cornerStyle })}
       />
-      <div className="border-t border-white/5" />
+      <hr className="divider" />
       <FrameSelector
         value={customization.frameStyle}
         onChange={(frameStyle) => onChange({ frameStyle })}
       />
-      <div className="border-t border-white/5 pt-2" />
+      <hr className="divider" />
       <SizeSlider
         value={customization.size}
         onChange={(size) => onChange({ size })}

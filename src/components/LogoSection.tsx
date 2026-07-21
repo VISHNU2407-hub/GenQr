@@ -20,8 +20,8 @@ export default function LogoSection({ customization, onChange, onError }: LogoSe
       {customization.logoDataUrl && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Logo Size</span>
-            <span className="text-xs text-slate-500 font-mono">{customization.logoSize}%</span>
+            <span className="text-xs text-text-secondary">Logo Size</span>
+            <span className="text-xs text-text-secondary/80 font-mono">{customization.logoSize}%</span>
           </div>
           <input
             type="range"
@@ -33,7 +33,7 @@ export default function LogoSection({ customization, onChange, onError }: LogoSe
             className="custom-slider w-full"
             aria-label="Logo size"
           />
-          <div className="flex justify-between text-[10px] text-slate-600">
+          <div className="flex justify-between text-[10px] text-text-secondary/60">
             <span>10%</span>
             <span>40%</span>
           </div>

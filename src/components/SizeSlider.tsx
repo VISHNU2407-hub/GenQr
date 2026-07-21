@@ -13,8 +13,8 @@ export default function SizeSlider({ value, onChange }: SizeSliderProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-slate-300 font-medium">Size</span>
-        <span className="text-sm text-slate-400 font-mono tabular-nums">{value}px</span>
+        <span className="text-sm text-text-primary font-medium">Size</span>
+        <span className="text-sm text-text-secondary font-mono tabular-nums">{value}px</span>
       </div>
       <input
         type="range"
@@ -26,7 +26,7 @@ export default function SizeSlider({ value, onChange }: SizeSliderProps) {
         className="custom-slider w-full"
         aria-label="QR code size"
       />
-      <div className="flex justify-between text-xs text-slate-600">
+      <div className="flex justify-between text-xs text-text-secondary/60">
         <span>150px</span>
         <span>500px</span>
       </div>

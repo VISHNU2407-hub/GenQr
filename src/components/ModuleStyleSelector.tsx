@@ -17,8 +17,8 @@ export default function ModuleStyleSelector({ value, onChange }: ModuleStyleSele
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Square className="w-4 h-4 text-slate-500" />
-        <span className="text-sm text-slate-300 font-medium">Module Style</span>
+        <Square className="w-4 h-4 text-text-secondary" />
+        <span className="text-sm text-text-primary font-medium">Module Style</span>
       </div>
       <div className="grid grid-cols-4 gap-2">
         {options.map((opt) => (
@@ -27,8 +27,8 @@ export default function ModuleStyleSelector({ value, onChange }: ModuleStyleSele
             onClick={() => onChange(opt.value)}
             className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
               value === opt.value
-                ? 'bg-primary/10 border-primary/30 text-primary'
-                : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10'
+                ? 'bg-primary-light border-primary/30 text-primary'
+                : 'bg-secondary/30 border-border text-text-secondary hover:text-text-primary hover:bg-secondary/50'
             }`}
           >
             <ModuleIcon style={opt.value} isActive={value === opt.value} />
@@ -41,7 +41,7 @@ export default function ModuleStyleSelector({ value, onChange }: ModuleStyleSele
 }
 
 function ModuleIcon({ style, isActive }: { style: ModuleStyle; isActive: boolean }) {
-  const color = isActive ? '#3B82F6' : '#94A3B8'
+  const color = isActive ? '#234F3D' : '#6F6F6F'
   const size = 20
 
   switch (style) {

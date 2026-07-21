@@ -12,13 +12,13 @@ const MyQRCodes = lazy(() => import('./pages/MyQRCodes'))
 
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark-bg">
+    <div className="min-h-screen flex items-center justify-center bg-cream-bg">
       <div className="flex flex-col items-center gap-4">
-        <div className="relative w-12 h-12">
-          <div className="absolute inset-0 rounded-full border-4 border-slate-700/50" />
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin" />
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 rounded-full border-2 border-secondary/50" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
         </div>
-        <p className="text-slate-400 text-sm font-medium">Loading...</p>
+        <p className="text-text-secondary text-sm font-medium">Loading...</p>
       </div>
     </div>
   )
@@ -26,7 +26,7 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-dark-bg">
+    <div className="min-h-screen bg-cream-bg">
       <RefreshProvider>
         <Navbar />
         <Suspense fallback={<PageLoader />}>

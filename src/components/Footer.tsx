@@ -1,29 +1,37 @@
-import { QrCode } from 'lucide-react'
+
 
 export default function Footer() {
   return (
-    <footer id="about" className="relative border-t border-white/5">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-primary/[0.02] pointer-events-none" />
-
-      <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16">
+    <footer className="relative border-t border-border">
+      <div className="max-w-7xl mx-auto px-4 py-12 sm:py-16">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Brand */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent">
-              <QrCode className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-white">GenQR</span>
+          <div className="flex items-center">
+            <img
+              src="/logo.png"
+              alt="GenQR Logo"
+              className="h-8 w-auto object-contain"
+            />
           </div>
 
           {/* Copyright */}
           <div className="text-center md:text-right">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-text-secondary">
               &copy; 2026 GenQR
             </p>
-            <p className="text-xs text-slate-600 mt-1">
+            <p className="text-xs text-text-secondary/60 mt-1">
               Designed &amp; Developed by{' '}
-              <span className="text-slate-400 font-medium">VKS</span>
+              <span className="font-bold tracking-tight">
+                <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-purple-600 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
+                  VKS
+                </span>
+                <span className="text-text-secondary ml-1.5 font-normal">
+                  —{' '}
+                  <span className="bg-gradient-to-r from-violet-500 via-fuchsia-400 to-purple-500 bg-clip-text text-transparent drop-shadow-[0_0_4px_rgba(168,85,247,0.3)]">
+                    Visionary Kraft Studio
+                  </span>
+                </span>
+              </span>
             </p>
           </div>
         </div>

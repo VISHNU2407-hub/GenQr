@@ -17,15 +17,15 @@ export default function ColorSection({ customization, onChange }: ColorSectionPr
         value={customization.fgColor}
         onChange={(fgColor) => onChange({ fgColor })}
       />
-      <div className="border-t border-white/5" />
+      <hr className="divider" />
       <ColorPicker
         label="Background"
         value={customization.bgColor}
         onChange={(bgColor) => onChange({ bgColor })}
       />
-      <div className="border-t border-white/5" />
+      <hr className="divider" />
       <div>
-        <span className="text-xs text-slate-500 mb-2 block">Gradient</span>
+        <span className="text-xs text-text-secondary mb-2 block">Gradient</span>
         <GradientPicker
           gradientType={customization.gradientType}
           gradientColor1={customization.gradientColor1}

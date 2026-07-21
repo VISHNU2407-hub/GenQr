@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { QrCode, LogIn, Loader2, AlertCircle } from 'lucide-react'
+import { LogIn, Loader2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginScreen() {
@@ -23,12 +23,11 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark-bg relative overflow-hidden px-4">
-      {/* Animated background gradients */}
+    <div className="min-h-screen flex items-center justify-center bg-cream-bg relative overflow-hidden px-4">
+      {/* Subtle background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-primary/10 blur-[100px] animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-accent/10 blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-primary/3 blur-[100px]" />
+        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-accent/3 blur-[100px]" />
       </div>
 
       <motion.div
@@ -37,8 +36,7 @@ export default function LoginScreen() {
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className="relative w-full max-w-md"
       >
-        {/* Glass card */}
-        <div className="glass-card p-8 sm:p-10">
+        <div className="card p-8 sm:p-10">
           {/* Branding */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -46,13 +44,15 @@ export default function LoginScreen() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="flex flex-col items-center mb-8"
           >
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/25 mb-4">
-              <QrCode className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">
+            <img
+              src="/logo.png"
+              alt="GenQR Logo"
+              className="w-24 h-24 object-contain mb-4"
+            />
+            <h1 className="text-3xl font-bold tracking-tight text-text-primary">
               GenQR
             </h1>
-            <p className="mt-2 text-slate-400 text-sm text-center">
+            <p className="mt-2 text-text-secondary text-sm text-center">
               Sign in to generate, customize, and manage your QR codes
             </p>
           </motion.div>
@@ -62,7 +62,7 @@ export default function LoginScreen() {
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2.5 px-4 py-3 mb-6 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+              className="flex items-center gap-2.5 px-4 py-3 mb-6 rounded-xl bg-danger/10 border border-danger/20 text-danger text-sm"
             >
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
@@ -78,7 +78,7 @@ export default function LoginScreen() {
             <button
               onClick={handleGoogleSignIn}
               disabled={isSigningIn}
-              className="relative w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-50 text-slate-900 font-semibold text-sm transition-all duration-200 shadow-lg shadow-white/10 hover:shadow-white/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100 group"
+              className="relative w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-sm transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isSigningIn ? (
                 <>
@@ -99,7 +99,7 @@ export default function LoginScreen() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-6 text-center text-xs text-slate-500"
+            className="mt-6 text-center text-xs text-text-secondary/60"
           >
             By signing in, you agree to our Terms of Service and Privacy Policy
           </motion.p>
@@ -110,18 +110,18 @@ export default function LoginScreen() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500"
+          className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-text-secondary"
         >
           <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/70" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
             Free to use
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/70" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
             Unlimited QR codes
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/70" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
             Save your history
           </span>
         </motion.div>

@@ -1,3 +1,5 @@
+/* oxlint-disable react/only-export-components — context + hook in same file is standard React pattern */
+
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import {
   onAuthStateChanged,
@@ -54,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       googleProvider.setCustomParameters({
         prompt: 'select_account',
       })
-      const result = await signInWithPopup(auth, googleProvider)
+      await signInWithPopup(auth, googleProvider)
       // Auth state listener will handle the rest
       return { success: true }
     } catch (error: any) {

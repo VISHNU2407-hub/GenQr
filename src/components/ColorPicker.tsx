@@ -13,10 +13,10 @@ export default function ColorPicker({ label, value, onChange }: ColorPickerProps
 
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-300 font-medium">{label}</span>
+      <span className="text-sm font-medium text-text-primary">{label}</span>
       <div className="relative flex items-center gap-3">
         <div
-          className="w-8 h-8 rounded-lg border border-white/10 shadow-sm overflow-hidden flex-shrink-0"
+          className="w-8 h-8 rounded-lg border border-border shadow-sm overflow-hidden flex-shrink-0"
           style={{ backgroundColor: value }}
         />
         <label className="relative cursor-pointer">
@@ -27,7 +27,7 @@ export default function ColorPicker({ label, value, onChange }: ColorPickerProps
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             aria-label={`Pick ${label.toLowerCase()} color`}
           />
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 font-mono hover:bg-white/10 transition-colors">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/40 border border-border rounded-lg text-xs text-text-secondary font-mono hover:bg-secondary/60 transition-colors">
             {value.toUpperCase()}
           </div>
         </label>

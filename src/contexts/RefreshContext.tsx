@@ -1,3 +1,5 @@
+/* oxlint-disable react/only-export-components — context + hook in same file is standard React pattern */
+
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
 interface RefreshContextType {

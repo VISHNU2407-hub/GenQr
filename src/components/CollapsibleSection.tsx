@@ -21,22 +21,22 @@ export default function CollapsibleSection({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-white/5 overflow-hidden bg-white/[0.02]"
+      className="card overflow-hidden"
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 bg-white/[0.02] border-b border-white/5 hover:bg-white/[0.04] transition-colors duration-200"
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-border hover:bg-secondary/20 transition-colors duration-200"
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-light">
             <Icon className="w-3.5 h-3.5 text-primary" />
           </div>
-          <span className="text-sm font-semibold text-slate-200">{title}</span>
+          <span className="text-sm font-semibold text-text-primary">{title}</span>
         </div>
         <motion.div
           animate={{ rotate: isOpen ? 0 : -90 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="text-slate-500"
+          className="text-text-secondary"
         >
           <ChevronDown className="w-4 h-4" />
         </motion.div>
@@ -52,7 +52,7 @@ export default function CollapsibleSection({
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-4 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-4">
               {children}
             </div>
           </motion.div>

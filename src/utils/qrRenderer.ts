@@ -516,6 +516,73 @@ function escapeXml(str: string): string {
 // ─── SVG Generation ────────────────────────────────────
 
 /**
+ * Reconstruct RenderOptions from a stored GeneratedQR object and render it to a canvas.
+ * Returns the canvas as a Blob (PNG).
+ *
+ * Note: logoDataUrl is not stored in Firestore (only a hasLogo boolean),
+ * so logos are not included in shared images from saved QRs.
+ */
+export async function renderQRFromStoredData(
+  qrData: {
+    content: string
+    style: Record<string, unknown>
+    colors: Record<string, unknown>
+    frame: Record<string, unknown>
+  },
+  size: number = 512
+): Promise<Blob | null> {
+  const style = qrData.style as Record<string, any>
+  const colors = qrData.colors as Record<string, any>
+  const frame = qrData.frame as Record<string, any>
+
+  const renderOptions: RenderOptions = {
+    value: qrData.content,
+    size: (style.size as number) ?? size,
+    margin: (style.margin as number) ?? 10,
+    level: (style.level as 'L' | 'M' | 'Q' | 'H') ?? 'M',
+    fgColor: (colors.fgColor as string) ?? '#000000',
+    bgColor: (colors.bgColor as string) ?? '#FFFFFF',
+    moduleStyle: (style.moduleStyle as ModuleStyle) ?? 'square',
+    cornerStyle: (style.cornerStyle as CornerStyle) ?? 'square',
+    gradientType: (colors.gradientType as GradientType) ?? 'solid',
+    gradientColor1: (colors.gradientColor1 as string) ?? '#000000',
+    gradientColor2: (colors.gradientColor2 as string) ?? '#3B82F6',
+    gradientDirection: (colors.gradientDirection as GradientDirection) ?? 'left-to-right',
+    logoDataUrl: null,
+    logoSize: 25,
+  }
+
+  const frameOptions: FrameExportOptions = {
+    framePreset: (frame.framePreset as FramePreset) ?? 'none',
+    frameCustomText: (frame.frameCustomText as string) ?? '',
+    frameColor: (frame.frameColor as string) ?? '#3B82F6',
+    frameBgColor: (frame.frameBgColor as string) ?? '#FFFFFF',
+    frameBorderRadius: (frame.frameBorderRadius as number) ?? 16,
+    frameBorderThickness: (frame.frameBorderThickness as number) ?? 2,
+    framePadding: (frame.framePadding as number) ?? 24,
+    frameHasShadow: (frame.frameHasShadow as boolean) ?? true,
+    frameRounded: (frame.frameRounded as boolean) ?? true,
+    frameOutline: (frame.frameOutline as boolean) ?? true,
+  }
+
+  try {
+    let canvas: HTMLCanvasElement
+    if (frameOptions.framePreset !== 'none') {
+      canvas = await renderQRWithFrame(renderOptions, frameOptions)
+    } else {
+      canvas = document.createElement('canvas')
+      canvas.width = renderOptions.size
+      canvas.height = renderOptions.size
+      await renderPremiumQR(canvas, renderOptions)
+    }
+    return await canvasToBlob(canvas, 'image/png')
+  } catch (err) {
+    console.error('Failed to render QR from stored data:', err)
+    return null
+  }
+}
+
+/**
  * Generates an SVG string that matches the canvas-rendered QR code.
  */
 export function generateSVG(options: RenderOptions): string {
